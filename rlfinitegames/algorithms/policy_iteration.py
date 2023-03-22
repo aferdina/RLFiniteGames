@@ -118,8 +118,8 @@ class PolicyIteration():
                         value_function_next_step += prob_next_state * \
                             self.value_func[i]
                 else:
-                    reward_state_action = np.sum(prob_next_state * rewards)
-                    value_function_next_step = np.sum(prob_next_state * self.value_func)
+                    reward_state_action = np.sum(prob_next_states * rewards)
+                    value_function_next_step = np.sum(prob_next_states * self.value_func)
 
                 q_values[state][act] += reward_state_action + \
                     self.policyparameter.gamma*value_function_next_step

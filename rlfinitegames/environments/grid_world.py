@@ -29,7 +29,8 @@ class GridWorld(Env):
         self.bomb_position = [size-2, size-2]   # position of the bomb
 
         # reset environment
-        self.state = self.reset()
+        self.state = None
+        self.reset()
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
         valid_action_space = self.get_valid_actions(self.state)
@@ -39,10 +40,10 @@ class GridWorld(Env):
             return self.state, 0, done, {}
 
         next_state = self.state + self.action_to_direction[action]
-        if np.array_equal(self.state, self.goal_position):
+        if np.array_equal(next_state, self.goal_position):
             done = True
             reward = 10
-        elif np.array_equal(self.state, self.bomb_position):
+        elif np.array_equal(next_state, self.bomb_position):
             done = True
             reward = -10
         else:
@@ -58,7 +59,8 @@ class GridWorld(Env):
         options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
-        return START_STATE
+        self.state = START_STATE
+        return 
 
     # TODO: implement get_valid_actions in a better way
     def get_valid_actions(self, agent_position: np.ndarray) -> list[int]:
@@ -121,7 +123,7 @@ class GridWorld(Env):
         # show the plot
         plt.show()
 
-    def get_rewards(self, _state: np.ndarray, _action: int):
+    def get_rewards(self, state: np.ndarray, action: int):
         """get the reward for the next state given the current state and the action"""
         rewards = np.ones(self.observation_space.nvec)*-1
         rewards[tuple(self.goal_position)] = 10
