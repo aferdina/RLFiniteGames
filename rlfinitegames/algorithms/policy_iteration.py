@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from typing import Union
 from enum import Enum
 import numpy as np
-import gym
-from RL_agent.discreteagent import FiniteAgent
-from environments.GridEnv import GridWorld
+from gym import Env, spaces
+from rlfinitegames.policies.discrete_agents import FiniteAgent
+from rlfinitegames.environments.grid_world import GridWorld
 
 
 # define all possible policy iteration approaches
@@ -41,17 +41,17 @@ class PolicyIteration():
     """
     # pylint: disable=line-too-long
 
-    def __init__(self, environment: Union[gym.Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.01, gamma=0.9), verbose: int = 0) -> None:
-        # TODO: adding second approach to the algorithm
+    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.01, gamma=0.9), verbose: int = 0) -> None:
+        # TODO: adding sweep approach to the algorithm
         self.policyparameter = policyparameter  # policy evaluation parameter
         self.environment = environment  # environment class
         self.agent = policy  # agent class
         self.verbose = verbose
         # Get the number of all possible states depending on Environment Type
-        if isinstance(self.environment.observation_space, gym.spaces.MultiDiscrete):
+        if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
             self.value_func = np.zeros(self.environment.observation_space.nvec)
             self.state_type = 'MultiDiscrete'
-        if isinstance(self.environment.observation_space, gym.spaces.Discrete):
+        if isinstance(self.environment.observation_space, spaces.Discrete):
             self.value_func = np.zeros(self.environment.observation_space.n)
             self.state_type = 'Discrete'
 
@@ -63,7 +63,6 @@ class PolicyIteration():
         done = False
         while not done:
             # store the new value function in the value_func_new variable
-            # TODO: update here
             q_values = self._calculate_q_function_general()
             if self.state_type == "Discrete":
                 states = range(self.environment.observation_space.n)
@@ -81,7 +80,7 @@ class PolicyIteration():
             # check if the new value function is in an epsilon environment of the old value function
             if ((value_func_new - self.value_func) < self.policyparameter.epsilon).all():
                 done = True
-                return value_func_new
+                return
             self.value_func = value_func_new.copy()
 
     def improve(self) -> None:
@@ -94,55 +93,29 @@ class PolicyIteration():
         self.agent.policy[tuple(np.indices(
             q_values.shape[:-1])) + (max_indices,)] = 1
 
-    def _calculate_q_value(self) -> np.ndarray:
-        q_values = np.zeros_like(self.agent.policy)  # initialize q_values
-        # Update weighted Value
-        # TODO: does not working for Discrete Setting
-        for state in np.ndindex(self.value_func.shape):  # get all possible states
-            # this is enough for deterministic env
-            # Get and Play all possible actions
-            valid_actions = self.environment.get_valid_actions(state)
-            for act in valid_actions:
-                # set game state
-                self.environment.state = np.array(state)
-                # probability of action
-                next_state, reward, _, _ = self.environment.step(action=act)
-                if weighted:
-                    # TODO: Adding transition probability for general case
-                    q_values[state][act] += self.agent.policy[state][act] * \
-                        (reward + self.policyparameter.gamma *
-                         self.value_func[tuple(next_state)])
-                else:
-                    q_values[state][act] += reward + self.policyparameter.gamma * \
-                        self.value_func[tuple(next_state)]
-        # TODO: Adding transition probability for general case
-        np.sum(q_values, axis=-1, keepdims=True)
-        return q_values
-
     def _calculate_q_function_general(self) -> np.ndarray:
         q_values = np.zeros_like(self.agent.policy)  # initialize q_values
         # Update weighted Value
-        # TODO: does not working for Discrete Setting
+
         for state in np.ndindex(self.value_func.shape):
-            # get all possible states
-            # this is enough for deterministic env
-            # Get and Play all possible actions
+            # in discrete case we only need integer values
             if len(state) == 1:
                 state = int(state[0])
+            # Get and Play all possible actions
             valid_actions = self.environment.get_valid_actions(state)
             for act in valid_actions:
-                prob_next_state = self.environment.calculate_probability(
+                prob_next_states = self.environment.calculate_probability(
                     state=state, action=act)
                 rewards = self.environment.get_rewards(
                     state=state, action=act)
-                
+
                 reward_state_action = 0.0
                 value_function_next_step = 0.0
                 if self.state_type == 'Discrete':
-                    for i in range(len(prob_next_state)):
-                        reward_state_action += prob_next_state[i] * rewards[i]
-                    for i in range(len(prob_next_state)):
-                        value_function_next_step += prob_next_state[i] * \
+                    for i, prob_next_state in enumerate(prob_next_states):
+                        reward_state_action += prob_next_state * rewards[i]
+                    for i, prob_next_state in enumerate(prob_next_states):
+                        value_function_next_step += prob_next_state * \
                             self.value_func[i]
                 else:
                     reward_state_action = np.sum(prob_next_state * rewards)
@@ -161,20 +134,3 @@ class PolicyIteration():
             self.improve()
             if ((self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
                 done = True
-
-
-if __name__ == "__main__":
-    size = int(input("Please provide size of Grid World Environment: "))
-    agent = FiniteAgent(env=GridWorld(size=size))
-    env = GridWorld(size=size)
-    algo = PolicyIteration(environment=env, policy=agent)
-    algo.policy_iteration()
-    env.reset()
-    for _ in range(20):
-        action = algo.agent.get_action(env.state)
-        next_state, reward, done, _ = env.step(action)
-        if done:
-            env.reset()
-        env.render()
-    print(
-        f"Resulting policy: {algo.agent.policy}, Resulting Value Function: {algo.value_func}")
