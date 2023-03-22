@@ -47,6 +47,8 @@ class IceVendor(Env):
         self.demand_structure = rgetattr(DemandStructure, f"{self.game_config.demand_structure}.value")(
             max_inventory=self.game_config.max_inventory, **self.game_config.demand_parameters)
 
+        # initialize information of game
+        self.info = {}
         # reset the game
         self.state = self.reset()
 
@@ -72,7 +74,7 @@ class IceVendor(Env):
         self.state = next_state
 
         done = False
-        # TODO: when do we set done = True?
+
         if self.timestep >= MAXSTEPS:
             done = True
         return next_state, reward, done, info
@@ -113,10 +115,10 @@ class IceVendor(Env):
             prob_next_state[index] = self.demand_structure.pmf(
                 next_state_without_demand - index)
         return prob_next_state
-    
+
     def get_rewards(self, state: int, action: int) -> list[float]:
+        """get the rewards for a given state and action"""
         rewards = []
-        # TODO: wrong order of states
         for next_state in range(self.game_config.max_inventory + 1):
             #what is the number of sold products
             # calculating reward
@@ -126,13 +128,13 @@ class IceVendor(Env):
         return rewards
 
 
-    def render(self, mode: str = "human"):
+    def render(self, _mode: str = "human"):
         print(self.info)
 
     def get_valid_actions(self, state: int) -> list[int]:
         """get the valid actions for a given state"""
-        valid_actions = [buy_ice_int for buy_ice_int in range(
-            self.game_config.max_inventory + 1 - state)]
+        valid_actions = list(range(
+            self.game_config.max_inventory + 1 - state))
         return valid_actions
 
 
@@ -144,7 +146,7 @@ def main():
     env.reset()
     for _ in range(10):
         action = env.action_space.sample()
-        next_state, reward, done, info = env.step(action)
+        _next_state, reward, done, info = env.step(action)
         print(f"total reward for action {action} is {reward}")
         print(info)
         if done:
