@@ -1,9 +1,17 @@
+""" implementation of grid search environment from lecture notes"""
+from typing import Optional, Tuple
 from gym import spaces, Env
 import numpy as np
 import matplotlib.pyplot as plt
 
 
+START_STATE = np.array([0, 0], dtype=np.int32)
+# pylint: disable=too-many-instance-attributes
+
+
 class GridWorld(Env):
+    """ grid world environment """
+
     def __init__(self, size):
         assert isinstance(
             size, int), f"size has to be an int but is {type(size)}"
@@ -19,22 +27,11 @@ class GridWorld(Env):
         }
         self.goal_position = [size-1, size-1]   # position of the goal
         self.bomb_position = [size-2, size-2]   # position of the bomb
-        self.state = None
-        self.valid_action_space = None
-
-        # needed for build_transition_prob
-        self.all_states = np.prod(self.observation_space.nvec)
-        self.lookup_dict = {count: state for count, state in zip(
-            range(self.all_states), np.ndindex(np.zeros(self.observation_space.nvec).shape))}
-        self.lookup_dict_rev = {y: x for x, y in self.lookup_dict.items()}
-        self.transition_probs = np.zeros(
-            (self.action_space.n, self.all_states, self.all_states))
-        self._build_transition_probabilities()
 
         # reset environment
-        self.reset()
+        self.state = self.reset()
 
-    def step(self, action):
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
         valid_action_space = self.get_valid_actions(self.state)
 
         done = False
@@ -54,11 +51,17 @@ class GridWorld(Env):
         self.state = next_state
         return next_state, reward, done, {}
 
-    def reset(self):
-        self.state = np.array([0, 0], dtype=np.int32)
-        self.valid_action_space = [0, 1]
+    def reset(
+        self,
+        *,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None,
+    ):
+        super().reset(seed=seed)
+        return START_STATE
 
-    def get_valid_actions(self, agent_position):
+    # TODO: implement get_valid_actions in a better way
+    def get_valid_actions(self, agent_position: np.ndarray) -> list[int]:
         """ get a list with all valid actions given a specific position
 
         Args:
@@ -70,44 +73,26 @@ class GridWorld(Env):
         if agent_position[0] == 0:
             if agent_position[1] == 0:
                 return [0, 1]
-            elif agent_position[1] == self.size-1:
+            if agent_position[1] == self.size-1:
                 return [0, 3]
-            else:
-                return [0, 1, 3]
-        elif agent_position[0] == self.size-1:
+            return [0, 1, 3]
+        if agent_position[0] == self.size-1:
             if agent_position[1] == 0:
                 return [1, 2]
-            elif agent_position[1] == self.size-1:
+            if agent_position[1] == self.size-1:
                 return [2, 3]
-            else:
-                return [1, 2, 3]
-        else:
-            if agent_position[1] == 0:
-                return [0, 1, 2]
-            elif agent_position[1] == self.size-1:
-                return [0, 2, 3]
-            else:
-                return [0, 1, 2, 3]
+            return [1, 2, 3]
+        if agent_position[1] == 0:
+            return [0, 1, 2]
+        if agent_position[1] == self.size-1:
+            return [0, 2, 3]
+        return [0, 1, 2, 3]
 
     def calculate_probability(self, state: np.ndarray, action: int):
+        """calculate the probability of transitioning to next states given state and action"""
         prob_next_state = np.zeros(self.observation_space.nvec)
         prob_next_state[tuple(state+self.action_to_direction[action])] = 1
         return prob_next_state
-
-    def _build_transition_probabilities(self):
-        for act in range(self.action_space.n):
-            for count in range(self.all_states):
-                # agent position
-                position = self.lookup_dict[count]
-                self.state = position
-                valid_action = self.get_valid_actions(position)
-                if act in valid_action:
-                    self.step(action=act)
-                    position_after = tuple(self.state)
-                    count_after = self.lookup_dict_rev[position_after]
-                    self.transition_probs[act, count, count_after] = 1
-        # Reset agent position
-        self.reset()
 
     def render(self):
 
@@ -120,9 +105,9 @@ class GridWorld(Env):
         # create a heatmap from the data
         plt.figure(figsize=(self.size-2, self.size-2))
         plt.imshow(grid, cmap='gray', interpolation='none')
-        ax = plt.gca()
-        ax.set_xticks(np.arange(self.size)-0.5, labels=np.arange(self.size))
-        ax.set_yticks(np.arange(self.size)-0.5, labels=np.arange(self.size))
+        axis = plt.gca()
+        axis.set_xticks(np.arange(self.size)-0.5, labels=np.arange(self.size))
+        axis.set_yticks(np.arange(self.size)-0.5, labels=np.arange(self.size))
         plt.grid(color='b', lw=2, ls='-')
 
         # plot positions of the agent, the bomb and the target position
@@ -136,24 +121,9 @@ class GridWorld(Env):
         # show the plot
         plt.show()
 
-    def get_rewards(self, state: np.ndarray, action: int):
+    def get_rewards(self, _state: np.ndarray, _action: int):
+        """get the reward for the next state given the current state and the action"""
         rewards = np.ones(self.observation_space.nvec)*-1
         rewards[tuple(self.goal_position)] = 10
         rewards[tuple(self.bomb_position)] = -10
         return rewards
-
-
-def main():
-    game = GridWorld(size=5)
-    game.reset()
-    for _ in range(10):
-        valid_actions = game.get_valid_actions(game.state)
-        action = np.random.choice(valid_actions)
-        prob_next_state = game.calculate_probability(game.state, action)
-        print(action, game.state)
-        print(prob_next_state)
-        next_state, reward, done, _info = game.step(action)
-
-
-if __name__ == "__main__":
-    main()
