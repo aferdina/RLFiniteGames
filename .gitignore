@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+env/
+ENV/
+venv-bak/
+pip-log.txt
+.venv
+
+# poetry
+poetry.lock
+
+# Logs
+*.log
+log.txt
+
+# Other
+*.swp
+.DS_Store
