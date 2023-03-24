@@ -1,0 +1,12 @@
+---
+en:
+  amount: Amount
+  app_title: Reinforcement Learning Games
+  category: Category
+  month: Month
+  no_data: No data selected
+  select: Select...
+  select_all: Select all
+  year: Year
+  grid_actions: Waehle eine Aktion aus 
+  grid-world-text-box-default: Let the games starts
