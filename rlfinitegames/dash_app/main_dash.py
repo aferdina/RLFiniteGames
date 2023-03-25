@@ -16,7 +16,7 @@ def main() -> None:
     app = Dash(external_stylesheets=[BOOTSTRAP])
     app.title = i18n.t("general.app_title")
     app.layout = create_layout(app)
-    app.run()
+    app.run_server(debug=True)
 
 # Run the app
 if __name__ == '__main__':

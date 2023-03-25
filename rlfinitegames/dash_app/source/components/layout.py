@@ -15,7 +15,7 @@ def create_layout(app: Dash) -> html.Div:
             gridworld_action_dropdown.render(app),
             # Add a button to update the plot
             Button('Update Plot', id=ids.GRID_WORLD_UPDATE_BUTTON,
-                       class_name="me-2", n_clicks=0),
+                       class_name="me-2", n_clicks=None),
             # Add game environment to the game plot
             gridworld_game.render(app),
             Textarea(id=ids.GRID_WORLD_TEXT_BOX, value=i18n.t('general.grid-world-text-box-default'))]),
