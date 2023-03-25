@@ -27,3 +27,4 @@ log.txt
 # Other
 *.swp
 .DS_Store
+.vscode
