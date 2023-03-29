@@ -3,12 +3,12 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 from enum import Enum
 from gym import spaces, Env
+import numpy as np
 # pylint: disable=C0301
 from rlfinitegames.environments.utils.demandstructure import PoissonRandomVariable, BinomialRandomVariable, NegativeBinomialRandomVariable
 from rlfinitegames.environments.utils.helpfunctions import rgetattr
 
 START_STATE = 0
-MAXSTEPS = float('inf')
 
 class DemandStructure(Enum):
     """ Different type of Demand structures """
@@ -27,6 +27,7 @@ class GameConfig:
     selling_price: float = 5.0
     demand_structure: DemandStructure = "POISSON"
     demand_parameters: Dict[str, int] = None
+    mean_no_days: int = 20
 
 
 class IceVendor(Env):
@@ -50,9 +51,9 @@ class IceVendor(Env):
         # initialize information of game
         self.info = {}
         # reset the game
+        self.timestep = 0
         self.state = self.reset()
 
-        self.timestep = 0
 
     def step(self, action: int) -> list[int, float, bool, dict]:
         """ run one step in the environment """
@@ -74,8 +75,8 @@ class IceVendor(Env):
         self.state = next_state
 
         done = False
-
-        if self.timestep >= MAXSTEPS:
+        self.timestep += 1
+        if self.timestep >= self.max_steps:
             done = True
         return next_state, reward, done, info
 
@@ -98,7 +99,7 @@ class IceVendor(Env):
         options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
-
+        self.max_steps = np.random.geometric(p=1/float(self.game_config.mean_no_days))
         self.timestep = 0
         return START_STATE
 

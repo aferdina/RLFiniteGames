@@ -141,6 +141,7 @@ class PolicyIteration():
             # Create trajectory given the starting state
             action = random.choice(
                 self.environment.get_valid_actions(starting_state))
+            self.environment.reset()
             self.environment.state = starting_state
             trajectory = {"state": [], "action": [], "reward": []}
             done = False
@@ -150,6 +151,8 @@ class PolicyIteration():
                 next_state, reward, done, _ = self.environment.step(action)
                 action = self.agent.get_action(next_state)
                 trajectory["reward"].append(reward)
+            # TODO: update only for one sample
+            # update the estimator for only one sample 
             # update estimator for value function, with trick
             print(f"evaluate trajectories")
             for index, (state, action) in reversed(list(enumerate(list(zip(trajectory["state"], trajectory["action"]))))):
@@ -291,7 +294,7 @@ class PolicyIteration():
         done = False
         counter = 0
         while not done:
-            old_policy = self.agent.policy
+            old_policy = self.agent.policy.copy()
             print(f"monte carlo approach is {self.montecarloparameter.montecarloapproach}")
             if self.montecarloparameter.montecarloapproach == MonteCarloApproaches.VALUE_FUNCTION.value:
                 self.evaluate_value_func()
@@ -322,9 +325,9 @@ def main():
     env = IceVendor(game_config=game_env)
     agent = FiniteAgent(env=env)
     monte_carlo_parameters = MonteCarloPolicyIterationParameters(
-        montecarloapproach="StateActionFunction", stateactionfunctioninit=20.0, unvalidstateactionvalue=-100.0)
+        montecarloapproach="StateActionFunction", stateactionfunctioninit=100.0, unvalidstateactionvalue=-1000000.0)
     policy_parameter = PolicyIterationParameter(
-        epsilon_greedy=0.1, gamma=0.95, approach="Naive", decay_steps=5, epsilon=0.01)
+        epsilon_greedy=0.4, gamma=0.95, approach="Naive", decay_steps=1, epsilon=0.01)
     # run policy iteration
     algo = PolicyIteration(environment=env, policy=agent, montecarloparameter=monte_carlo_parameters, policyparameter=policy_parameter)
     # algo.policy_iteration()
@@ -333,6 +336,7 @@ def main():
 
     for _ in range(total_steps):
         action = algo.agent.get_action(env.state)
+        print(f"action is {action}")
         _next_state, reward, done, _ = env.step(action)
         print(f"next state: {_next_state}, reward: {reward}, done: {done}")
         print(done)
