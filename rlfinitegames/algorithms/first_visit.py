@@ -8,7 +8,8 @@ import numpy as np
 from gym import Env, spaces
 from rlfinitegames.policies.discrete_agents import FiniteAgent
 from rlfinitegames.environments.grid_world import GridWorld
-
+from rlfinitegames.environments.ice_vendor import IceVendor, GameConfig
+from itertools import product
 
 # define all possible policy iteration approaches
 class PolicyIterationApproaches(Enum):
@@ -30,9 +31,9 @@ class MonteCarloApproaches(Enum):
 @dataclass
 class MonteCarloPolicyIterationParameters:
     montecarloapproach: MonteCarloApproaches
-    stateactionfunctioninit: Union[float, None]
-    valuefunctioninit: Union[float, None]
-    unvalidstateactionvalue: Union[float, None]
+    valuefunctioninit: Union[float, None] = None
+    stateactionfunctioninit: Union[float, None] = None
+    unvalidstateactionvalue: Union[float, None] = None
 
 
 @dataclass
@@ -46,9 +47,10 @@ class PolicyIterationParameter:
     """
     epsilon: float = 0.01
     gamma: float = 0.95
-    approach: PolicyIterationApproaches
+    approach: PolicyIterationApproaches = PolicyIterationApproaches.NAIVE
     epsilon_greedy: float = 0.1
     epsilon_greedy_decay: float = 1.0
+    decay_steps: int = 1
 
 
 class PolicyIteration():
@@ -60,7 +62,7 @@ class PolicyIteration():
     """
     # pylint: disable=line-too-long
 
-    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.001, gamma=0.95, epsilon_greedy=0.5, epsilon_greedy_decay=0.95), verbose: int = 0, montecarloparameter: MonteCarloPolicyIterationParameters = MonteCarloPolicyIterationParameters(stateactionfunctioninit=20.0, valuefunctioninit=20.0, montecarloapproach="StateActionFunction", unvalidstateacionvalue=-100.0)) -> None:
+    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.001, gamma=0.95, epsilon_greedy=0.5, epsilon_greedy_decay=0.95), verbose: int = 0, montecarloparameter: MonteCarloPolicyIterationParameters = MonteCarloPolicyIterationParameters(stateactionfunctioninit=20.0, valuefunctioninit=20.0, montecarloapproach="StateActionFunction", unvalidstateactionvalue=-100.0)) -> None:
         # TODO: adding sweep approach to the algorithm
         self.policyparameter = policyparameter  # policy evaluation parameter
         self.environment = environment  # environment class
@@ -72,60 +74,49 @@ class PolicyIteration():
         self.state_type = None
         self.init_state_type()
 
-        self.value_func = None
-        self.init_value_function()
+        if self.montecarloparameter.montecarloapproach == MonteCarloApproaches.VALUE_FUNCTION.value:
+            self.value_func = self.init_value_function(
+                self.montecarloparameter.valuefunctioninit)
 
-        self.state_action_function = None
-        self.init_state_action_function()
+        if self.montecarloparameter.montecarloapproach == MonteCarloApproaches.STATE_ACTION_FUNCTION.value:
+            self.state_action_function = self.init_state_action_function(
+                self.montecarloparameter.stateactionfunctioninit)
+
+    def init_state_action_function(self, state_action_init: float) -> np.ndarray:
+        state_action_function = np.ones_like(
+            self.agent.policy) * state_action_init
+        # Unterscheide zwischen den Faellen
         if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
-            if self.montecarloparameter.montecarloapproach == 'StateActionFunction':
-                self.state_action_function = np.ones_like(
-                    self.environment.observation_space.nvec) * self.montecarloparameter.valuefunctioninit
-            elif self.montecarloparameter.montecarloapproach == 'ValueFunction':
-                self.value_func = np.ones_like(
-                    self.environment.observation_space.nvec) * self.montecarloparameter.valuefunctioninit
-            else:
-                raise NotImplementedError(f"Unknown montecarlo approach")
-        # als Funktion auslagern
-        if isinstance(self.environment.observation_space, spaces.Discrete):
-            if self.montecarloparameter.montecarloapproach == 'StateActionFunction':
-                self.state_action_function = np.ones_like(
-                    self.environment.observation_space.n) * self.montecarloparameter.valuefunctioninit
-            elif self.montecarloparameter.montecarloapproach == 'ValueFunction':
-                self.value_func = np.ones_like(
-                    self.environment.observation_space.n) * self.montecarloparameter.valuefunctioninit
-            else:
-                raise NotImplementedError(f"Unknown montecarlo approach")
-
-        if self.montecarloparameter.montecarloapproach == 'StateActionFunction':
-            for state in np.ndindex(self.value_func.shape):
-                state_pos_action = self.environment.get_valid_actions(state)
+            # TODO: not nice implementation yet
+            for state in list(product(*[list(range(element)) for element in self.environment.observation_space.nvec.tolist()])):
+                state_pos_action = self.environment.get_valid_actions(
+                    state)
                 not_pos_actions = set(self.agent.all_actions) - \
                     set(state_pos_action)
-                self.state_action_function[state][list(
+                state_action_function[state][list(
                     not_pos_actions)] = self.montecarloparameter.unvalidstateactionvalue
-
-    def init_state_action_function(self)-> None:
-        if self.montecarloparameter.montecarloapproach == 'StateActionFunction':
-            # Unterscheide zwischen den Faellen
-            self.state_action_function = np.ones_like(
-                self.agent.policy) * self.montecarloparameter.stateactionfunctioninit
-            for state in np.ndindex(self.value_func.shape):
-                state_pos_action = self.environment.get_valid_actions(state)
-                not_pos_actions = set(self.agent.all_actions) - \
-                    set(state_pos_action)
-                self.state_action_function[state][list(
-                    not_pos_actions)] = self.montecarloparameter.unvalidstateactionvalue
-
-    def init_value_function(self):
-        if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
-            self.state_action_function = np.ones_like(
-                self.environment.observation_space.nvec) * self.montecarloparameter.valuefunctioninit
         elif isinstance(self.environment.observation_space, spaces.Discrete):
-            self.state_action_function = np.ones_like(
-                self.environment.observation_space.n) * self.montecarloparameter.valuefunctioninit
+            for state in range(self.environment.observation_space.n):
+                state_pos_action = self.environment.get_valid_actions(
+                    state)
+                not_pos_actions = set(self.agent.all_actions) - \
+                    set(state_pos_action)
+                state_action_function[state][list(
+                    not_pos_actions)] = self.montecarloparameter.unvalidstateactionvalue
         else:
             raise NotImplementedError(f"Unknown environment type")
+        return state_action_function
+
+    def init_value_function(self, value_func_init: float) -> np.ndarray:
+        if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
+            value_func = np.ones_like(
+                self.environment.observation_space.nvec) * value_func_init
+        elif isinstance(self.environment.observation_space, spaces.Discrete):
+            value_func = np.ones_like(
+                self.environment.observation_space.n) * value_func_init
+        else:
+            raise NotImplementedError(f"Unknown environment type")
+        return value_func
 
     def init_state_type(self):
         if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
@@ -136,13 +127,8 @@ class PolicyIteration():
             raise NotImplementedError(f"Unknown environment type")
 
     def evaluate_state_action_func(self) -> None:
-        state_action_func_new = np.zeros_like(
-            self.state_action_function.copy())
-        for state in np.ndindex(self.value_func.shape):
-            state_pos_action = self.environment.get_valid_actions(state)
-            not_pos_actions = set(self.agent.all_actions) - \
-                set(state_pos_action)
-            state_action_func_new[state][list(not_pos_actions)] = -100.0
+        state_action_func_new = self.init_state_action_function(
+            state_action_init=0.0)
 
         number_of_times_played = np.zeros_like(
             self.state_action_function.copy())
@@ -196,34 +182,16 @@ class PolicyIteration():
         self.agent.policy[tuple(np.indices(
             self.state_action_function.shape[:-1])) + (max_indices,)] = 1 - self.policyparameter.epsilon_greedy
 
-    def policy_iteration_state_action_function(self) -> None:
-        """ using policy iteration to find optimal policy """
-        done = False
-        counter = 0
-        while not done:
-            old_policy = self.agent.policy
-            self.evaluate_state_action_func()
-            self.policy_improvement_state_action_func()
-            counter += 1
-            print(f"distance {np.sum(np.abs(self.agent.policy - old_policy))}")
-            print(f"epsilon greedy is {self.policyparameter.epsilon_greedy}")
-            if (np.abs(self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
-                done = True
-            if counter % 1 == 0:
-                self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
-
     def evaluate_value_func(self) -> None:
         """
         use policy evaluation to get the value function from the current policy"""
         # Update the value function according the current policy
-        value_func_new = np.zeros_like(self.value_func.copy())
+        value_func_new = self.init_value_function(value_func_init=0.0)
         number_of_times_played = np.zeros_like(self.value_func.copy())
         done_converge = False
         while not done_converge:
             # Sample from starting function
-            starting_state = self.environment.observation_space.sample()
-            while np.array_equal(starting_state, self.environment.bomb_position) or np.array_equal(starting_state, self.environment.goal_position):
-                starting_state = self.environment.observation_space.sample()
+            starting_state = self.environment.costum_sample()
             # Create trajectory given the starting state
             self.environment.state = starting_state
             trajectory = {"state": [], "action": [], "reward": []}
@@ -285,8 +253,8 @@ class PolicyIteration():
             q_values.shape[:-1])) + (max_indices,)] = 1 - self.policyparameter.epsilon_greedy
 
     def _calculate_q_function_general(self) -> np.ndarray:
-        q_values = np.ones_like(self.agent.policy) * - \
-            100  # initialize q_values
+        q_values = np.ones_like(
+            self.agent.policy) * self.montecarloparameter.unvalidstateactionvalue  # initialize q_values
         # Update weighted Value
 
         for state in np.ndindex(self.value_func.shape):
@@ -318,18 +286,26 @@ class PolicyIteration():
                     self.policyparameter.gamma*value_function_next_step
         return q_values
 
-    def policy_iteration(self) -> None:
-        """ using policy iteration to find optimal policy """
+    def policy_iteration_monte_carlo(self) -> None:
+        """ using policy iteration with monte carlo samples to find the optimal policy """
         done = False
         counter = 0
         while not done:
             old_policy = self.agent.policy
-            self.evaluate_value_func()
-            self.epsilongreedyimprove()
+            print(f"monte carlo approach is {self.montecarloparameter.montecarloapproach}")
+            if self.montecarloparameter.montecarloapproach == MonteCarloApproaches.VALUE_FUNCTION.value:
+                self.evaluate_value_func()
+                self.epsilongreedyimprove()
+            elif self.montecarloparameter.montecarloapproach == MonteCarloApproaches.STATE_ACTION_FUNCTION.value:
+                self.evaluate_state_action_func()
+                self.policy_improvement_state_action_func()
+            else:
+                raise NotImplementedError("Other methods not implemented yet")
+
             counter += 1
             if (np.abs(self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
                 done = True
-            if counter % 10 == 0:
+            if counter % self.policyparameter.decay_steps == 0:
                 self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
 
 
@@ -339,14 +315,20 @@ def main():
     # set size of grid world
     size = int(input("Please provide size of Grid World Environment: "))
     # initialize agent
-    agent = FiniteAgent(env=GridWorld(size=size))
+    #agent = FiniteAgent(env=GridWorld(size=size))
     # initialize grid world environment
-    env = GridWorld(size=size)
-
+    #env = GridWorld(size=size)
+    game_env = GameConfig(demand_parameters={"lam": 2.0})
+    env = IceVendor(game_config=game_env)
+    agent = FiniteAgent(env=env)
+    monte_carlo_parameters = MonteCarloPolicyIterationParameters(
+        montecarloapproach="StateActionFunction", stateactionfunctioninit=20.0, unvalidstateactionvalue=-100.0)
+    policy_parameter = PolicyIterationParameter(
+        epsilon_greedy=0.1, gamma=0.95, approach="Naive", decay_steps=5, epsilon=0.01)
     # run policy iteration
-    algo = PolicyIteration(environment=env, policy=agent, intial_value=20.0)
+    algo = PolicyIteration(environment=env, policy=agent, montecarloparameter=monte_carlo_parameters, policyparameter=policy_parameter)
     # algo.policy_iteration()
-    algo.policy_iteration()
+    algo.policy_iteration_monte_carlo()
     env.reset()
 
     for _ in range(total_steps):
@@ -357,9 +339,6 @@ def main():
         if done:
             env.reset()
         env.render()
-    print(
-        f"Resulting policy: {algo.agent.policy}, Resulting Value Function: {algo.value_func}")
-    print(f"Resulting q function: {algo.state_action_function}")
 
 
 if __name__ == "__main__":
