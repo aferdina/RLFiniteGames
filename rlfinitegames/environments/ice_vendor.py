@@ -137,21 +137,5 @@ class IceVendor(Env):
             self.game_config.max_inventory + 1 - state))
         return valid_actions
 
-
-def main():
-    """ run the game """
-
-    game_env = GameConfig(demand_parameters={"lam": 2.0})
-    env = IceVendor(game_env)
-    env.reset()
-    for _ in range(10):
-        action = env.action_space.sample()
-        _next_state, reward, done, info = env.step(action)
-        print(f"total reward for action {action} is {reward}")
-        print(info)
-        if done:
-            env.reset()
-
-
-if __name__ == "__main__":
-    main()
+    def costum_sample(self) -> int:
+        return self.observation_space.sample()
