@@ -133,6 +133,6 @@ class GridWorld(Env):
     def costum_sample(self) -> np.ndarray:
         """sample a random state from the environment"""
         sample = self.observation_space.sample()
-        while np.array_equal(sample, self.environment.bomb_position) or np.array_equal(sample, self.environment.goal_position):
-                sample = self.environment.observation_space.sample()
+        while np.array_equal(sample, self.bomb_position) or np.array_equal(sample, self.goal_position):
+                sample = self.observation_space.sample()
         return sample
