@@ -12,7 +12,12 @@ START_STATE = np.array([0, 0], dtype=np.int32)
 class GridWorld(Env):
     """ grid world environment """
 
-    def __init__(self, size):
+    def __init__(self, size: int) -> None:
+        """ init grid world environment
+
+        Args:
+            size (int): size of the grid world environment
+        """
         assert isinstance(
             size, int), f"size has to be an int but is {type(size)}"
         assert size > 2, f"size has to be greater than 2 but is {size}"
@@ -57,10 +62,9 @@ class GridWorld(Env):
         *,
         seed: Optional[int] = None,
         options: Optional[dict] = None,
-    ):
+    ) -> None:
         super().reset(seed=seed)
         self.state = START_STATE
-        return 
 
     # TODO: implement get_valid_actions in a better way
     def get_valid_actions(self, agent_position: np.ndarray) -> list[int]:
@@ -123,7 +127,9 @@ class GridWorld(Env):
         # show the plot
         plt.show()
 
-    def get_rewards(self, state: np.ndarray, action: int):
+    # TODO: how to handle the situation of unused variables for general classes
+    # maybe right kwargs in base class
+    def get_rewards(self, state: np.ndarray, action: int) -> float:
         """get the reward for the next state given the current state and the action"""
         rewards = np.ones(self.observation_space.nvec)*-1
         rewards[tuple(self.goal_position)] = 10
@@ -133,6 +139,8 @@ class GridWorld(Env):
     def costum_sample(self) -> np.ndarray:
         """sample a random state from the environment"""
         sample = self.observation_space.sample()
-        while np.array_equal(sample, self.bomb_position) or np.array_equal(sample, self.goal_position):
-                sample = self.observation_space.sample()
+        while np.array_equal(sample,
+                            self.bomb_position) or np.array_equal(sample,
+                                                                  self.goal_position):
+            sample = self.observation_space.sample()
         return sample
