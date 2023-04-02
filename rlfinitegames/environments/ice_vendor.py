@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 from enum import Enum
 from gym import spaces, Env
-import numpy as np
 # pylint: disable=C0301
 from rlfinitegames.environments.utils.demandstructure import PoissonRandomVariable, BinomialRandomVariable, NegativeBinomialRandomVariable
 from rlfinitegames.environments.utils.helpfunctions import rgetattr
@@ -51,8 +50,9 @@ class IceVendor(Env):
         # initialize information of game
         self.info = {}
         # reset the game
-        self.timestep = 0
-        self.state = self.reset()
+        self.timestep = None
+        self.state = None
+        self.reset()
 
 
     def step(self, action: int) -> list[int, float, bool, dict]:
@@ -97,11 +97,11 @@ class IceVendor(Env):
         *,
         seed: Optional[int] = None,
         options: Optional[dict] = None,
-    ):
+    ) -> None:
         super().reset(seed=seed)
-        self.max_steps = np.random.geometric(p=1/float(self.game_config.mean_no_days))
+        self.max_steps = 100
         self.timestep = 0
-        return START_STATE
+        self.state = START_STATE
 
     def calculate_probability(self, state: int, action: int) -> float:
         """calculate the probability to get in the next by taking action in specific state"""
@@ -139,4 +139,9 @@ class IceVendor(Env):
         return valid_actions
 
     def costum_sample(self) -> int:
+        """ get a random sample from the game state equiv storage
+
+        Returns:
+            int: potential storage state
+        """
         return self.observation_space.sample()
