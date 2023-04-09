@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from gym import spaces, Env
 import numpy as np
 import matplotlib.pyplot as plt
-
+import logging
 
 START_STATE = np.array([0, 0], dtype=np.int32)
 # pylint: disable=too-many-instance-attributes
