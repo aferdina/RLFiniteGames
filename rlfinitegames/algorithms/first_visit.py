@@ -33,7 +33,7 @@ class MonteCarloPolicyIterationParameters:
     montecarloapproach: MonteCarloApproaches
     valuefunctioninit: Union[float, None] = None
     stateactionfunctioninit: Union[float, None] = None
-    unvalidstateactionvalue: Union[float, None] = None
+    invalidstateactionvalue: Union[float, None] = None
 
 
 @dataclass
@@ -62,7 +62,7 @@ class PolicyIteration():
     """
     # pylint: disable=line-too-long
 
-    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.001, gamma=0.95, epsilon_greedy=0.5, epsilon_greedy_decay=0.95), verbose: int = 0, montecarloparameter: MonteCarloPolicyIterationParameters = MonteCarloPolicyIterationParameters(stateactionfunctioninit=20.0, valuefunctioninit=20.0, montecarloapproach="StateActionFunction", unvalidstateactionvalue=-100.0)) -> None:
+    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.001, gamma=0.95, epsilon_greedy=0.5, epsilon_greedy_decay=0.95), verbose: int = 0, montecarloparameter: MonteCarloPolicyIterationParameters = MonteCarloPolicyIterationParameters(stateactionfunctioninit=20.0, valuefunctioninit=20.0, montecarloapproach="StateActionFunction", invalidstateactionvalue=-100.0)) -> None:
         # TODO: adding sweep approach to the algorithm
         self.policyparameter = policyparameter  # policy evaluation parameter
         self.environment = environment  # environment class
@@ -94,7 +94,7 @@ class PolicyIteration():
                 not_pos_actions = set(self.agent.all_actions) - \
                     set(state_pos_action)
                 state_action_function[state][list(
-                    not_pos_actions)] = self.montecarloparameter.unvalidstateactionvalue
+                    not_pos_actions)] = self.montecarloparameter.invalidstateactionvalue
         elif isinstance(self.environment.observation_space, spaces.Discrete):
             for state in range(self.environment.observation_space.n):
                 state_pos_action = self.environment.get_valid_actions(
@@ -102,7 +102,7 @@ class PolicyIteration():
                 not_pos_actions = set(self.agent.all_actions) - \
                     set(state_pos_action)
                 state_action_function[state][list(
-                    not_pos_actions)] = self.montecarloparameter.unvalidstateactionvalue
+                    not_pos_actions)] = self.montecarloparameter.invalidstateactionvalue
         else:
             raise NotImplementedError(f"Unknown environment type")
         return state_action_function
@@ -206,7 +206,7 @@ class PolicyIteration():
                 _next_state, reward, done, _ = self.environment.step(action)
                 trajectory["reward"].append(reward)
             # update estimator for value function
-
+            
             for index, state in reversed(list(enumerate(trajectory["state"]))):
                 if not any(np.array_equal(arr, state) for arr in trajectory['state'][:index]):
                     if self.state_type == 'MultiDiscrete':
@@ -257,7 +257,7 @@ class PolicyIteration():
 
     def _calculate_q_function_general(self) -> np.ndarray:
         q_values = np.ones_like(
-            self.agent.policy) * self.montecarloparameter.unvalidstateactionvalue  # initialize q_values
+            self.agent.policy) * self.montecarloparameter.invalidstateactionvalue  # initialize q_values
         # Update weighted Value
 
         for state in np.ndindex(self.value_func.shape):
@@ -318,16 +318,16 @@ def main():
     # set size of grid world
     size = int(input("Please provide size of Grid World Environment: "))
     # initialize agent
-    #agent = FiniteAgent(env=GridWorld(size=size))
+    agent = FiniteAgent(env=GridWorld(size=size))
     # initialize grid world environment
-    #env = GridWorld(size=size)
-    game_env = GameConfig(demand_parameters={"lam": 2.0})
-    env = IceVendor(game_config=game_env)
-    agent = FiniteAgent(env=env)
+    env = GridWorld(size=size)
+    #game_env = GameConfig(demand_parameters={"lam": 2.0})
+    #env = IceVendor(game_config=game_env)
+    #agent = FiniteAgent(env=env)
     monte_carlo_parameters = MonteCarloPolicyIterationParameters(
-        montecarloapproach="StateActionFunction", stateactionfunctioninit=100.0, unvalidstateactionvalue=-1000000.0)
+        montecarloapproach="StateActionFunction", stateactionfunctioninit=20.0, invalidstateactionvalue=-1000000.0)
     policy_parameter = PolicyIterationParameter(
-        epsilon_greedy=0.4, gamma=0.95, approach="Naive", decay_steps=1, epsilon=0.01)
+        epsilon_greedy=0.3, gamma=0.95, approach="Naive", decay_steps=3, epsilon=0.01, epsilon_greedy_decay=0.95)
     # run policy iteration
     algo = PolicyIteration(environment=env, policy=agent, montecarloparameter=monte_carlo_parameters, policyparameter=policy_parameter)
     # algo.policy_iteration()
