@@ -70,7 +70,7 @@ class FiniteAgent(BaseAgent):
             state (np.ndarray): gamestate of the environment
 
         Returns:
-            action :single action, randomly generated according to policy
+            action (int): single action, randomly generated according to policy
         """
 
         # Update Probabilities
