@@ -18,6 +18,7 @@ python-i18n = {extras = ["yaml"], version = "^0.3.9"}
 loguru = "^0.6.0"
 attr = "^0.3.2"
 trio = "^0.22.0"
+colorlog = "^6.7.0"
 
 
 [tool.poetry.group.dev.dependencies]
