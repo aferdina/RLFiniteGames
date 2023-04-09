@@ -15,9 +15,9 @@ from rlfinitegames.logging_module.setup_logger import setup_logger
 # statics for logging purposes
 LOGGINGPATH = "rlfinitegames/logging_module/logfiles/"
 FILENAME = "one_step_dp"
-LOGGING_LEVEL = logging.INFO
+LOGGING_LEVEL = logging.DEBUG
 LOGGING_CONSOLE_LEVEL = logging.INFO
-LOGGING_FILE_LEVEL = logging.INFO
+LOGGING_FILE_LEVEL = logging.DEBUG
 # initialize logging module
 
 
@@ -40,7 +40,7 @@ class OneStepDynamicProgrammingParameters:
     gamma: float = 0.95
     epsilon_greedy: float = 0.1
     epsilon_greedy_decay: float = 1.0
-    decay_steps: int = 1
+    decay_steps: int = 5
 
 
 class OneStepDynamicProgramming():
@@ -62,9 +62,9 @@ class OneStepDynamicProgramming():
         # Get the number of all possible states depending on Environment Type
 
         self.state_type = None
-        self.init_state_type()
+        self._init_state_type()
 
-        self.state_action_function = self.init_state_action_function(
+        self.state_action_function = self._init_state_action_function(
             self.init_parameter.stateactionfunctioninit)
 
         self.logger = setup_logger(logger_name=__name__,
@@ -74,7 +74,109 @@ class OneStepDynamicProgramming():
                                    stream_handler_level=LOGGING_CONSOLE_LEVEL,
                                    console_output=True)
 
-    def init_state_action_function(self, state_action_init: float) -> np.ndarray:
+    def sarsa_on_policy_control_terminating(self) -> None:
+        """ sarsa on policy control for terminmatic mdps from lecture, algo 24
+
+        Raises:
+            NotImplementedError: Error if observation space is not `MultiDiscrete` or `Discrete`
+        """
+        counter = 0
+        self.logger.info("Sarsa on policy evaluation starting")
+        state_action_func_new = self._init_state_action_function(
+            state_action_init=0.0)
+
+        number_of_times_played = np.zeros_like(
+            self.state_action_function.copy())
+        done_converge = False
+
+        while not done_converge:
+            self.logger.debug("Creating a new trajectory")
+            # Sample from starting function
+            state = self.environment.costum_sample()
+            # Create trajectory given the starting state
+            action = random.choice(self.environment.get_valid_actions(state))
+            self.environment.reset()
+            self.environment.state = state
+            done = False
+            while not done:
+                # sample reward, next state, done
+                next_state, reward, done, _ = self.environment.step(action)
+                self.logger.debug(
+                    f"next_state is {next_state}, reward is {reward} and done is {done}")
+                next_action = self.agent.get_action(next_state)
+                self.logger.debug(f"next action is {action}")
+                alpha = self._get_alpha(
+                    state=state, action=action, times_played=number_of_times_played, rate= 0.5)
+                self.logger.debug(f"alpha is given by {alpha}")
+                if self.state_type == 'MultiDiscrete':
+                    state_pos = tuple(state)
+                    next_state_pos = tuple(next_state)
+                elif self.state_type == 'Discrete':
+                    state_pos = state
+                    next_state_pos = next_state
+                else:
+                    raise NotImplementedError(
+                        "Only MultiDiscrete and Discrete are supported up to now")
+                # updating state action function
+                if done:
+                    state_action_func_new[state_pos][action] = state_action_func_new[state_pos][action] + alpha * (
+                        reward - state_action_func_new[state_pos][action])
+                else:
+                    # Not good for the case when the terminal state is not really a terminal state
+                    state_action_func_new[state_pos][action] = state_action_func_new[state_pos][action] + alpha * (
+                        reward + self.policyparameter.gamma * self.state_action_function[next_state_pos][next_action] - state_action_func_new[state_pos][action])
+                number_of_times_played[state_pos][action] += 1
+                action = next_action
+                state = next_state
+                self._get_epsilon_greedy_improved_policy(
+                    state_action_function=state_action_func_new.copy())
+            self.logger.info(
+                f"convergence is {np.sum(np.abs(state_action_func_new - self.state_action_function))}")
+            if (np.abs(state_action_func_new - self.state_action_function) < self.policyparameter.epsilon).all():
+                done_converge = True
+                self.logger.info(f"algo is converged {done_converge}")
+                return
+            self.state_action_function = state_action_func_new.copy()
+            counter += 1
+            if counter % self.policyparameter.decay_steps == 0:
+                self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
+                self.logger.info(
+                    f"epsilon_greedy is {self.policyparameter.epsilon_greedy}")
+
+    def q_learning_off_policy(self, policy) -> None:
+        """ implementation from algorithm q_learning_off_policy, algorithm 23 `Q-Learning` from lecture slides
+
+        Args:
+            policy (np.ndarray): behviour policy to get actions from
+        """
+        self.logger.info("q_learning_off_policy is starting")
+        self._q_learning_off_policy_td_control(behavior_policy=policy)
+        self._get_greedy_policy(state_action_function=None)
+
+    def policy_iteration_sarsa_evalulation(self) -> None:
+        """ policy iteration with sarsa evaluation for the state action function algo 22
+        """
+        self.logger.info(f"policy_iteration_sarsa_evalulation")
+        done = False
+        counter = 0
+        while not done:
+            old_policy = self.agent.policy.copy()
+            self.logger.debug(
+                f"start sarsa evaluation for state action function")
+            self._sarsa_evaluate_state_action_func()
+            self.logger.debug(f"use epsilon greedy for new action function")
+            self._get_epsilon_greedy_improved_policy(state_action_function=None)
+            counter += 1
+            if (np.abs(self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
+                done = True
+                self.logger.info("algorithm is converged")
+            if counter % self.policyparameter.decay_steps == 0:
+                self.logger.debug(f"number of steps {counter}")
+                self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
+                self.logger.info(
+                    f"epsilon greedy value is {self.policyparameter.epsilon_greedy}")
+
+    def _init_state_action_function(self, state_action_init: float) -> np.ndarray:
         state_action_function = np.ones_like(
             self.agent.policy) * state_action_init
         # Unterscheide zwischen den Faellen
@@ -99,7 +201,7 @@ class OneStepDynamicProgramming():
             raise NotImplementedError(f"Unknown environment type")
         return state_action_function
 
-    def init_state_type(self) -> None:
+    def _init_state_type(self) -> None:
         """ initializes the state type of the gym environment
 
         Raises:
@@ -116,9 +218,13 @@ class OneStepDynamicProgramming():
             except NotImplementedError as e:
                 self.logger.exception(str(e))
 
-    def sarsa_on_policy_evaluation(self) -> None:
-        counter = 0
-        state_action_func_new = self.init_state_action_function(
+    def _sarsa_evaluate_state_action_func(self) -> None:
+        """ sarsa policy evaluation from lecture algorithm 22
+
+        Raises:
+            NotImplementedError: If observation space is not MultiDiscrete or Discrete
+        """
+        state_action_func_new = self._init_state_action_function(
             state_action_init=0.0)
 
         number_of_times_played = np.zeros_like(
@@ -128,18 +234,24 @@ class OneStepDynamicProgramming():
         while not done_converge:
 
             # Sample from starting function
+            self.logger.debug("Starting new trajectory")
             state = self.environment.costum_sample()
+            self.logger.debug(f"Starting state is given by {state}")
             # Create trajectory given the starting state
-            action = random.choice(self.environment.get_valid_actions(state))
+            action = self.agent.get_action(state)
+            self.logger.debug(f"action is given by {action}")
             self.environment.reset()
             self.environment.state = state
             done = False
             while not done:
                 # sample reward, next state, done
                 next_state, reward, done, _ = self.environment.step(action)
+                self.logger.debug(
+                    f"next state is given by {next_state} and reward is {reward} and done is {done}")
                 next_action = self.agent.get_action(next_state)
-                alpha = self.get_alpha(
+                alpha = self._get_alpha(
                     state=state, action=action, times_played=number_of_times_played)
+                self.logger.debug(f"alpha is given by {alpha}")
                 if self.state_type == 'MultiDiscrete':
                     state_pos = tuple(state)
                     next_state_pos = tuple(next_state)
@@ -154,78 +266,20 @@ class OneStepDynamicProgramming():
                     state_action_func_new[state_pos][action] = state_action_func_new[state_pos][action] + alpha * (
                         reward - state_action_func_new[state_pos][action])
                 else:
-                    # Not good for the case when the terminal state is not really a terminal state
                     state_action_func_new[state_pos][action] = state_action_func_new[state_pos][action] + alpha * (
                         reward + self.policyparameter.gamma * self.state_action_function[next_state_pos][next_action] - state_action_func_new[state_pos][action])
                 number_of_times_played[state_pos][action] += 1
                 action = next_action
                 state = next_state
-                self.get_epsilon_greedy_improved_policy(
-                    state_action_function=state_action_func_new)
-                counter += 1
-                if counter % 1000 == 0:
-                    self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
-                    self.logger.debug(
-                        f"epsilon_greedy is {self.policyparameter.epsilon_greedy}")
             self.logger.debug(
                 f"convergence is {np.sum(np.abs(state_action_func_new - self.state_action_function))}")
             if (np.abs(state_action_func_new - self.state_action_function) < self.policyparameter.epsilon).all():
                 done_converge = True
-                self.logger.info(f"algo is converged {done_converge}")
+                self.logger.info(f"sarsa evaluation is converged {done_converge}")
                 return
             self.state_action_function = state_action_func_new.copy()
 
-    def sarsa_evaluate_state_action_func(self) -> None:
-        state_action_func_new = self.init_state_action_function(
-            state_action_init=0.0)
-
-        number_of_times_played = np.zeros_like(
-            self.state_action_function.copy())
-        done_converge = False
-
-        while not done_converge:
-
-            # Sample from starting function
-            state = self.environment.costum_sample()
-            # Create trajectory given the starting state
-            action = self.agent.get_action(state)
-            self.environment.reset()
-            self.environment.state = state
-            done = False
-            while not done:
-                # sample reward, next state, done
-                next_state, reward, done, _ = self.environment.step(action)
-                next_action = self.agent.get_action(next_state)
-                alpha = self.get_alpha(
-                    state=state, action=action, times_played=number_of_times_played)
-                if self.state_type == 'MultiDiscrete':
-                    state_pos = tuple(state)
-                    next_state_pos = tuple(next_state)
-                elif self.state_type == 'Discrete':
-                    state_pos = state
-                    next_state_pos = next_state
-                else:
-                    raise NotImplementedError(
-                        "Only MultiDiscrete and Discrete are supported up to now")
-                # updating state action function
-                if done:
-                    state_action_func_new[state_pos][action] = state_action_func_new[state_pos][action] + alpha * (
-                        reward - state_action_func_new[state_pos][action])
-                else:
-                    state_action_func_new[state_pos][action] = state_action_func_new[state_pos][action] + alpha * (
-                        reward + self.policyparameter.gamma * self.state_action_function[next_state_pos][next_action] - state_action_func_new[state_pos][action])
-                number_of_times_played[state_pos][action] += 1
-                action = next_action
-                state = next_state
-            print(
-                f"convergence is {np.sum(np.abs(state_action_func_new - self.state_action_function))}")
-            if (np.abs(state_action_func_new - self.state_action_function) < self.policyparameter.epsilon).all():
-                done_converge = True
-                print(f"algo is converged {done_converge}")
-                return
-            self.state_action_function = state_action_func_new.copy()
-
-    def get_alpha(self, state: Union[int, np.ndarray], action: int, times_played: np.ndarray, rate: float = 1.0) -> float:
+    def _get_alpha(self, state: Union[int, np.ndarray], action: int, times_played: np.ndarray, rate: float = 1.0) -> float:
         if self.state_type == 'MultiDiscrete':
             state_pos = tuple(state)
         elif self.state_type == 'Discrete':
@@ -235,18 +289,7 @@ class OneStepDynamicProgramming():
                 "Only MultiDiscrete and Discrete are supported up to now")
         return 1 / (1 + times_played[state_pos][action]) ** rate
 
-    def q_learning_off_policy(self, policy) -> None:
-        """ implementation from algorithm q_learning_off_policy
-
-        Args:
-            policy (_type_): _description_
-        """
-        self.logger.info("q_learning_off_policy is starting")
-        self.q_learning_off_policy_td_control(behavior_policy=policy)
-        self.get_greedy_policy(state_action_function=None)
-
-    def get_epsilon_greedy_improved_policy(self, state_action_function: Union[np.ndarray, None]) -> None:
-        self.logger.debug(f"{self.state_action_function}")
+    def _get_epsilon_greedy_improved_policy(self, state_action_function: Union[np.ndarray, None] = None) -> None:
         if state_action_function is None:
             max_indices = np.argmax(self.state_action_function, axis=-1)
             self.agent.policy = np.ones_like(
@@ -261,25 +304,25 @@ class OneStepDynamicProgramming():
             self.agent.policy[tuple(np.indices(
                 state_action_function.shape[:-1])) + (max_indices,)] = 1 - self.policyparameter.epsilon_greedy
 
-    def get_greedy_policy(self, state_action_function: Union[np.ndarray, None]) -> None:
+    def _get_greedy_policy(self, state_action_function: Union[np.ndarray, None] = None) -> None:
         self.logger.debug(f"{self.state_action_function}")
         if state_action_function is None:
             max_indices = np.argmax(self.state_action_function, axis=-1)
         else:
             max_indices = np.argmax(state_action_function, axis=-1)
+
         self.agent.policy = np.zeros_like(
             self.agent.policy)
-
         self.agent.policy[tuple(np.indices(
             self.state_action_function.shape[:-1])) + (max_indices,)] = 1
 
-    def q_learning_off_policy_td_control(self, behavior_policy: np.ndarray) -> None:
+    def _q_learning_off_policy_td_control(self, behavior_policy: np.ndarray) -> None:
         self.logger.debug(f"starting policy is given by {behavior_policy}")
         self.agent.policy = behavior_policy.copy()
         number_of_times_played = np.zeros_like(
             self.state_action_function.copy())
 
-        self.state_action_function = self.init_state_action_function(
+        self.state_action_function = self._init_state_action_function(
             state_action_init=10.0)
         state_action_func_new = self.state_action_function.copy()
         self.logger.debug(
@@ -289,7 +332,8 @@ class OneStepDynamicProgramming():
 
         while not done_converge:
             # Sample from starting function
-            state = np.array([0, 0], dtype=np.int32)
+            state = self.environment.costum_sample()
+            self.logger.debug("starting state is {state}")
             # Create trajectory given the starting state
             self.environment.reset()
             self.environment.state = state
@@ -324,7 +368,7 @@ class OneStepDynamicProgramming():
                 state = next_state
                 self.logger.debug(
                     f"state action value is {state_action_func_new[state_pos][action]}")
-                self.logger.debug(f"state was {state}, action was {action}")
+                self.logger.debug(f"next state is {state}")
                 self.logger.debug(50*"*")
                 self.logger.debug(
                     f"state action function is given by {state_action_func_new}")
@@ -336,11 +380,3 @@ class OneStepDynamicProgramming():
                     f"q_learning_off_policy_td_control is converged {done_converge}")
                 return
             self.state_action_function = state_action_func_new.copy()
-
-    def policy_improvement_state_action_func(self) -> None:
-        max_indices = np.argmax(self.state_action_function, axis=-1)
-        self.agent.policy = np.ones_like(
-            self.agent.policy) * self.policyparameter.epsilon_greedy/(self.environment.action_space.n - 1)
-
-        self.agent.policy[tuple(np.indices(
-            self.state_action_function.shape[:-1])) + (max_indices,)] = 1 - self.policyparameter.epsilon_greedy
