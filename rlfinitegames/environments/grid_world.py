@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 from gym import spaces, Env
 import numpy as np
 import matplotlib.pyplot as plt
-import logging
 
 START_STATE = np.array([0, 0], dtype=np.int32)
 # pylint: disable=too-many-instance-attributes
@@ -138,9 +137,10 @@ class GridWorld(Env):
 
     def costum_sample(self) -> np.ndarray:
         """sample a random state from the environment"""
-        sample = self.observation_space.sample()
-        while np.array_equal(sample,
-                            self.bomb_position) or np.array_equal(sample,
-                                                                  self.goal_position):
-            sample = self.observation_space.sample()
+        # sample = self.observation_space.sample()
+        # while np.array_equal(sample,
+        #                     self.bomb_position) or np.array_equal(sample,
+        #                                                           self.goal_position):
+        #     sample = self.observation_space.sample()
+        sample = START_STATE
         return sample
