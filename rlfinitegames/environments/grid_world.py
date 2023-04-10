@@ -29,8 +29,10 @@ class GridWorld(Env):
             2: np.array([-1, 0]),       # going up
             3: np.array([0, -1]),       # going left
         }
-        self.goal_position = [size-1, size-1]   # position of the goal
-        self.bomb_position = [size-2, size-2]   # position of the bomb
+        self.goal_position = np.ndarray(
+            [size-1, size-1])   # position of the goal
+        self.bomb_position = np.ndarray(
+            [size-2, size-2])   # position of the bomb
 
         # reset environment
         self.state = None
@@ -65,41 +67,35 @@ class GridWorld(Env):
         super().reset(seed=seed)
         self.state = START_STATE
 
-    # TODO: implement get_valid_actions in a better way
     def get_valid_actions(self, agent_position: np.ndarray) -> list[int]:
         """ get a list with all valid actions given a specific position
 
         Args:
-            agent_position (): _description_
+            agent_position (np.ndarray): position of the agent in the grid
 
         Returns:
-            _type_: _description_
+            list[int]: list with all valid actions for the specific position
         """
+        valid_actions = [0, 1, 2, 3]
         if agent_position[0] == 0:
-            if agent_position[1] == 0:
-                return [0, 1]
-            if agent_position[1] == self.size-1:
-                return [0, 3]
-            return [0, 1, 3]
-        if agent_position[0] == self.size-1:
-            if agent_position[1] == 0:
-                return [1, 2]
-            if agent_position[1] == self.size-1:
-                return [2, 3]
-            return [1, 2, 3]
+            valid_actions.remove(2)
         if agent_position[1] == 0:
-            return [0, 1, 2]
+            valid_actions.remove(3)
+        if agent_position[0] == self.size-1:
+            valid_actions.remove(4)
         if agent_position[1] == self.size-1:
-            return [0, 2, 3]
-        return [0, 1, 2, 3]
+            valid_actions.remove(1)
+        return valid_actions
 
-    def calculate_probability(self, state: np.ndarray, action: int):
+    def calculate_probability(self, state: np.ndarray, action: int) -> list[float]:
         """calculate the probability of transitioning to next states given state and action"""
         prob_next_state = np.zeros(self.observation_space.nvec)
-        prob_next_state[tuple(state+self.action_to_direction[action])] = 1
+        prob_next_state[tuple(state+self.action_to_direction[action])] = 1.0
         return prob_next_state
 
-    def render(self):
+    def render(self) -> None:
+        """ render the current state to the screen
+        """
 
         # translate positions of agent, bomb and target in a matrix
         grid = np.zeros((self.size, self.size))
@@ -128,15 +124,27 @@ class GridWorld(Env):
 
     # TODO: how to handle the situation of unused variables for general classes
     # maybe right kwargs in base class
-    def get_rewards(self, state: np.ndarray, action: int) -> float:
-        """get the reward for the next state given the current state and the action"""
+    def get_rewards(self, state: np.ndarray, action: int) -> list[float]:
+        """get the reward for the next state given the current state and the action
+
+        Args:
+            state (np.ndarray): state to retrieve the rewards from
+            action (int): action to retrieve the rewards from
+
+        Returns:
+            list[float]: list with next rewards 
+        """
         rewards = np.ones(self.observation_space.nvec)*-1
         rewards[tuple(self.goal_position)] = 10
         rewards[tuple(self.bomb_position)] = -10
         return rewards
 
     def costum_sample(self) -> np.ndarray:
-        """sample a random state from the environment"""
+        """sample a random state from the environment
+
+        Returns:
+            np.ndarray: random starting state from the environment for algorithm
+        """
         # sample = self.observation_space.sample()
         # while np.array_equal(sample,
         #                     self.bomb_position) or np.array_equal(sample,
@@ -144,3 +152,11 @@ class GridWorld(Env):
         #     sample = self.observation_space.sample()
         sample = START_STATE
         return sample
+
+    def get_terminal_states(self) -> list[np.ndarray]:
+        """ get list of all terminal states from the environment
+
+        Returns:
+            list[np.ndarray]: terminal states from the environment
+        """
+        return [self.goal_position, self.bomb_position]
