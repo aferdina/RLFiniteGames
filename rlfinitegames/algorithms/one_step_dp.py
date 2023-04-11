@@ -21,6 +21,9 @@ LOGGING_CONSOLE_LEVEL = logging.INFO
 LOGGING_FILE_LEVEL = logging.DEBUG
 # initialize logging module
 
+# TODO: not use lazy % formatting in logging function
+# pylint: disable=W1203
+
 
 @dataclass
 class RunTimeMethod(Enum):
@@ -40,8 +43,6 @@ class OneStepDynamicProgrammingInitConfig:
     stateactionfunctioninit: Union[float, None] = None
     invalidstateactionvalue: Union[float, None] = None
 
-# TODO: adding a rate parameter for the alpahs
-
 
 @dataclass
 class OneStepDynamicProgrammingParameters:
@@ -59,6 +60,7 @@ class OneStepDynamicProgrammingParameters:
     decay_steps: int = 5
     run_time_method: RunTimeMethod = "episodes"
     episodes: Union[int, None] = None
+    rate: float = 1.0
 
 
 class OneStepDynamicProgramming():
@@ -123,7 +125,7 @@ class OneStepDynamicProgramming():
                 next_action = self.agent.get_action(next_state)
                 self.logger.debug(f"next action is {action}")
                 alpha = self._get_alpha(
-                    state=state, action=action, times_played=number_of_times_played, rate=0.5)
+                    state=state, action=action, times_played=number_of_times_played, rate=self.policyparameter.rate)
                 self.logger.debug(f"alpha is given by {alpha}")
                 if self.state_type == 'MultiDiscrete':
                     state_pos = tuple(state)
@@ -209,7 +211,7 @@ class OneStepDynamicProgramming():
                     self.logger.info(
                         f"epsilon greedy value is {self.policyparameter.epsilon_greedy}")
             else:
-                raise NotImplemented("Method is not implemented yet")
+                raise NotImplementedError("Method is not implemented yet")
 
     def _init_state_action_function(self, state_action_init: float) -> np.ndarray:
         state_action_function = np.ones_like(
@@ -250,8 +252,8 @@ class OneStepDynamicProgramming():
             # otherwise not implemented yet
             try:
                 raise NotImplementedError("Unknown environment type")
-            except NotImplementedError as e:
-                self.logger.exception(str(e))
+            except NotImplementedError as exc:
+                self.logger.exception(str(exc))
 
     def _sarsa_evaluate_state_action_func(self) -> None:
         """ sarsa policy evaluation from lecture algorithm 22
