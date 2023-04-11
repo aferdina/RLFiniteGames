@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from gym import spaces, Env
 import numpy as np
 import matplotlib.pyplot as plt
-
+import random
 START_STATE = 0
 # pylint: disable=too-many-instance-attributes
 
@@ -25,29 +25,45 @@ class ConstructedMaxBias(Env):
         # the state `0` is equal to `C` and the state `1` is equal to `D` and `2` is equal to terminal state
         self.action_space = spaces.Discrete(self.number_arms)
 
+        # initialize information of game
+        self.info = {}
+
         # reset environment
         self.state = None
         self.reset()
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
-        valid_action_space = self.get_valid_actions(self.state)
 
+        valid_action_space = self.get_valid_actions(self.state)
         done = False
+
+        # check if action is valid
         if action not in valid_action_space:
             return self.state, 0, done, {}
 
-        next_state = self.state + self.action_to_direction[action]
-        if np.array_equal(next_state, self.goal_position):
+        # if state is `C`
+        if self.state == 0:
+            reward = 0.0
+            if action == 0:
+                next_state = 1
+            else:
+                next_state = 2
+                done = True
+            info = f"next state is {next_state} and reward is {reward} and done is {done}"
+        # if state is `D`
+        elif self.state == 1:
+            reward = np.random.normal(loc=-0.1, scale=1.0)
             done = True
-            reward = 10
-        elif np.array_equal(next_state, self.bomb_position):
-            done = True
-            reward = -10
+            next_state = 2
+            info = f"next state is {next_state} and reward is {reward} and done is {done}"
+        elif self.state == 2:
+            info = "we are already in the terminal state"
+            return 2, 0.0, True, info
         else:
-            reward = -1
-
+            raise ValueError(f"state is not valid")
         self.state = next_state
-        return next_state, reward, done, {}
+        self.info = info
+        return next_state, reward, done, info
 
     def reset(
         self,
@@ -72,7 +88,7 @@ class ConstructedMaxBias(Env):
         """
         if agent_position == 0:
             return [0, 1,]
-        elif agent_position == 1:
+        elif agent_position in [1, 2]:
             return list(range(self.action_space.n))
         else:
             raise ValueError("agent_position is not defined")
@@ -94,7 +110,7 @@ class ConstructedMaxBias(Env):
         return prob_next_state
 
     def render(self):
-        pass
+        print(self.info)
 
     # TODO: how to handle the situation of unused variables for general classes
     # maybe right kwargs in base class
@@ -116,5 +132,5 @@ class ConstructedMaxBias(Env):
         #                     self.bomb_position) or np.array_equal(sample,
         #                                                           self.goal_position):
         #     sample = self.observation_space.sample()
-        sample = START_STATE
+        sample = random.choice([0,1])
         return sample

@@ -36,7 +36,7 @@ def setup_logger(logger_name: str = __name__,
     # Create a file handler if a file path is provided
     if log_file:
         file_handler = RotatingFileHandler(
-            filename=log_file, maxBytes=1024 * 1024, backupCount=5)
+            filename=log_file, maxBytes=1024 * 1024, backupCount=1)
         file_handler.setLevel(file_handler_level)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)

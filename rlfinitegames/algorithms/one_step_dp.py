@@ -2,14 +2,15 @@
 """
 import random
 from dataclasses import dataclass
+from itertools import product
+from enum import Enum
+import logging
 from typing import Union
 import numpy as np
 from gym import Env, spaces
+from scipy.stats import entropy
 from rlfinitegames.policies.discrete_agents import FiniteAgent
 from rlfinitegames.environments.grid_world import GridWorld
-from rlfinitegames.environments.ice_vendor import IceVendor, GameConfig
-from itertools import product
-import logging
 from rlfinitegames.logging_module.setup_logger import setup_logger
 
 # statics for logging purposes
@@ -22,9 +23,24 @@ LOGGING_FILE_LEVEL = logging.DEBUG
 
 
 @dataclass
+class RunTimeMethod(Enum):
+    """ Dataclass to specify the method to run the algorithm. If episodes is used, then 
+    the algorithm is running until a number of episodes have been completed. Otherwise,
+    the algorithm
+    is running until a convergence criterion has been reached.
+    """
+    EPISODES = "episodes"
+    CRITERION = "criterion"
+
+
+@dataclass
 class OneStepDynamicProgrammingInitConfig:
+    """ Dataclass to specify the initialization values for the stateaction function in the algorithm
+    """
     stateactionfunctioninit: Union[float, None] = None
     invalidstateactionvalue: Union[float, None] = None
+
+# TODO: adding a rate parameter for the alpahs
 
 
 @dataclass
@@ -41,6 +57,8 @@ class OneStepDynamicProgrammingParameters:
     epsilon_greedy: float = 0.1
     epsilon_greedy_decay: float = 1.0
     decay_steps: int = 5
+    run_time_method: RunTimeMethod = "episodes"
+    episodes: Union[int, None] = None
 
 
 class OneStepDynamicProgramming():
@@ -53,7 +71,6 @@ class OneStepDynamicProgramming():
     # pylint: disable=line-too-long
 
     def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: OneStepDynamicProgrammingParameters = OneStepDynamicProgrammingParameters(), verbose: int = 0, init_parameter: OneStepDynamicProgrammingInitConfig = OneStepDynamicProgrammingInitConfig(stateactionfunctioninit=20.0, invalidstateactionvalue=-1000000)) -> None:
-        # TODO: adding sweep approach to the algorithm
         self.policyparameter = policyparameter  # policy evaluation parameter
         self.environment = environment  # environment class
         self.agent = policy  # agent class
@@ -106,7 +123,7 @@ class OneStepDynamicProgramming():
                 next_action = self.agent.get_action(next_state)
                 self.logger.debug(f"next action is {action}")
                 alpha = self._get_alpha(
-                    state=state, action=action, times_played=number_of_times_played, rate= 0.5)
+                    state=state, action=action, times_played=number_of_times_played, rate=0.5)
                 self.logger.debug(f"alpha is given by {alpha}")
                 if self.state_type == 'MultiDiscrete':
                     state_pos = tuple(state)
@@ -165,16 +182,34 @@ class OneStepDynamicProgramming():
                 f"start sarsa evaluation for state action function")
             self._sarsa_evaluate_state_action_func()
             self.logger.debug(f"use epsilon greedy for new action function")
-            self._get_epsilon_greedy_improved_policy(state_action_function=None)
+            self._get_epsilon_greedy_improved_policy(
+                state_action_function=None)
             counter += 1
-            if (np.abs(self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
-                done = True
-                self.logger.info("algorithm is converged")
-            if counter % self.policyparameter.decay_steps == 0:
-                self.logger.debug(f"number of steps {counter}")
-                self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
-                self.logger.info(
-                    f"epsilon greedy value is {self.policyparameter.epsilon_greedy}")
+            self.logger.debug(f"policy is given by {self.agent.policy}")
+            if self.policyparameter.run_time_method == RunTimeMethod.CRITERION.value:
+                if (np.abs(self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
+                    entropies = np.apply_along_axis(
+                        lambda x: entropy(x, base=2), axis=-1, arr=self.agent.policy.copy())
+                    self.logger.debug(f"entropies is given by {entropies}")
+                    if (entropies < self.policyparameter.epsilon).all():
+                        done = True
+                        self.logger.info(
+                            "policy_iteration_sarsa_evalulation is converged")
+                if counter % self.policyparameter.decay_steps == 0:
+                    self.logger.debug(f"number of steps {counter}")
+                    self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
+                    self.logger.info(
+                        f"epsilon greedy value is {self.policyparameter.epsilon_greedy}")
+            elif self.policyparameter.run_time_method == RunTimeMethod.EPISODES.value:
+                if counter >= self.policyparameter.episodes:
+                    done = True
+                if counter % self.policyparameter.decay_steps == 0:
+                    self.logger.debug(f"number of steps {counter}")
+                    self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
+                    self.logger.info(
+                        f"epsilon greedy value is {self.policyparameter.epsilon_greedy}")
+            else:
+                raise NotImplemented("Method is not implemented yet")
 
     def _init_state_action_function(self, state_action_init: float) -> np.ndarray:
         state_action_function = np.ones_like(
@@ -198,7 +233,7 @@ class OneStepDynamicProgramming():
                 state_action_function[state][list(
                     not_pos_actions)] = self.init_parameter.invalidstateactionvalue
         else:
-            raise NotImplementedError(f"Unknown environment type")
+            raise NotImplementedError("Unknown environment type")
         return state_action_function
 
     def _init_state_type(self) -> None:
@@ -225,7 +260,7 @@ class OneStepDynamicProgramming():
             NotImplementedError: If observation space is not MultiDiscrete or Discrete
         """
         state_action_func_new = self._init_state_action_function(
-            state_action_init=0.0)
+            state_action_init=self.init_parameter.stateactionfunctioninit)
 
         number_of_times_played = np.zeros_like(
             self.state_action_function.copy())
@@ -238,7 +273,8 @@ class OneStepDynamicProgramming():
             state = self.environment.costum_sample()
             self.logger.debug(f"Starting state is given by {state}")
             # Create trajectory given the starting state
-            action = self.agent.get_action(state)
+            # action = self.agent.get_action(state)
+            action = random.choice(self.environment.get_valid_actions(state))
             self.logger.debug(f"action is given by {action}")
             self.environment.reset()
             self.environment.state = state
@@ -249,6 +285,7 @@ class OneStepDynamicProgramming():
                 self.logger.debug(
                     f"next state is given by {next_state} and reward is {reward} and done is {done}")
                 next_action = self.agent.get_action(next_state)
+                self.logger.debug(f"action is given by {next_action}")
                 alpha = self._get_alpha(
                     state=state, action=action, times_played=number_of_times_played)
                 self.logger.debug(f"alpha is given by {alpha}")
@@ -268,14 +305,21 @@ class OneStepDynamicProgramming():
                 else:
                     state_action_func_new[state_pos][action] = state_action_func_new[state_pos][action] + alpha * (
                         reward + self.policyparameter.gamma * self.state_action_function[next_state_pos][next_action] - state_action_func_new[state_pos][action])
+                self.logger.debug(
+                    f"State action function value is given by {state_action_func_new[state_pos][action]}")
                 number_of_times_played[state_pos][action] += 1
                 action = next_action
                 state = next_state
             self.logger.debug(
+                f"number  of times playes is {number_of_times_played}")
+            self.logger.debug(
                 f"convergence is {np.sum(np.abs(state_action_func_new - self.state_action_function))}")
             if (np.abs(state_action_func_new - self.state_action_function) < self.policyparameter.epsilon).all():
+                self.logger.debug(
+                    f"State action function {state_action_func_new}")
                 done_converge = True
-                self.logger.info(f"sarsa evaluation is converged {done_converge}")
+                self.logger.info(
+                    f"sarsa evaluation is converged {done_converge}")
                 return
             self.state_action_function = state_action_func_new.copy()
 
@@ -333,7 +377,7 @@ class OneStepDynamicProgramming():
         while not done_converge:
             # Sample from starting function
             state = self.environment.costum_sample()
-            self.logger.debug("starting state is {state}")
+            self.logger.debug(f"starting state is {state}")
             # Create trajectory given the starting state
             self.environment.reset()
             self.environment.state = state
@@ -344,7 +388,7 @@ class OneStepDynamicProgramming():
                 self.logger.debug(f"action is {action}")
                 self.logger.debug(f"state is {self.environment.state}")
                 next_state, reward, done, _ = self.environment.step(action)
-                alpha = self.get_alpha(
+                alpha = self._get_alpha(
                     state=state, action=action, times_played=number_of_times_played.copy())
                 self.logger.debug(f"alpha is {alpha}")
                 self.logger.debug(f"reward is given by {reward}")
@@ -373,7 +417,7 @@ class OneStepDynamicProgramming():
                 self.logger.debug(
                     f"state action function is given by {state_action_func_new}")
             self.logger.debug(
-                f"convergence is {np.sum(np.abs(state_action_func_new - self.state_action_function))}")
+                f'convergence is {np.sum(np.abs(state_action_func_new - self.state_action_function))}')
             if (np.abs(state_action_func_new - self.state_action_function) < self.policyparameter.epsilon).all():
                 done_converge = True
                 self.logger.info(

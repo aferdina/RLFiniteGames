@@ -2,6 +2,7 @@
 from rlfinitegames.policies.discrete_agents import FiniteAgent
 from rlfinitegames.environments.ice_vendor import IceVendor, GameConfig
 from rlfinitegames.environments.grid_world import GridWorld
+from rlfinitegames.environments.constructed_max_bias import ConstructedMaxBias
 from rlfinitegames.algorithms.one_step_dp import OneStepDynamicProgrammingParameters, OneStepDynamicProgramming, OneStepDynamicProgrammingInitConfig
 import logging
 from rlfinitegames.logging_module.setup_logger import setup_logger
@@ -34,25 +35,35 @@ def main():
     # agent = FiniteAgent(env=env_ice)
 
     ### GRID_WORLD###
-    logger.info("Initializing GRID_WORLD")
-    env_grid = GridWorld(size=5)
+    # logger.info("Initializing GRID_WORLD")
+    # env = GridWorld(size=5)
+    # logger.info("Initializing Agent")
+    # agent = FiniteAgent(env=env, policy_type="uniform")
+    # algo = OneStepDynamicProgramming(environment=env,
+    #                                  policy=agent, policyparameter=ONES_STEP_DP_PARAMETERS, init_parameter=ONE_STEP_DP_INIT_CONFIG)
+    # logger.info("Start algorithm")
+
+    ### CONSTRUCTED MAX BIAS###
+    logger.info("Initializing Constructed Max Bias")
+    env = ConstructedMaxBias(number_arms=5)
     logger.info("Initializing Agent")
-    agent = FiniteAgent(env=env_grid, policy_type="uniform")
+    agent = FiniteAgent(env=env, policy_type="uniform")
     logger.info("Start algorithm")
-    algo = OneStepDynamicProgramming(environment=env_grid,
+    algo = OneStepDynamicProgramming(environment=env,
                                      policy=agent, policyparameter=ONES_STEP_DP_PARAMETERS, init_parameter=ONE_STEP_DP_INIT_CONFIG)
+
     algo.q_learning_off_policy(agent.policy.copy())
-    env_grid.reset()
+    env.reset()
     logger.info("run trained agent")
     logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
     for _ in range(TOTALSTEPS):
-        action = algo.agent.get_action(env_grid.state)
+        action = algo.agent.get_action(env.state)
         logger.info(f"action: {action}")
-        _next_state, _reward, done, _ = env_grid.step(action)
-        env_grid.render()
+        _next_state, _reward, done, _ = env.step(action)
+        env.render()
         if done:
-            env_grid.reset()
+            env.reset()
 
 
 if __name__ == "__main__":
