@@ -1,9 +1,10 @@
 """ implementation of grid search environment from lecture notes"""
+import random
 from typing import Optional, Tuple
 from gym import spaces, Env
 import numpy as np
-import matplotlib.pyplot as plt
-import random
+
+
 START_STATE = 0
 # pylint: disable=too-many-instance-attributes
 
@@ -22,7 +23,8 @@ class ConstructedMaxBias(Env):
         assert number_arms > 2, f"number_arms has to be greater than 2 but is {number_arms}"
         self.number_arms = number_arms
         self.observation_space = spaces.Discrete(3)
-        # the state `0` is equal to `C` and the state `1` is equal to `D` and `2` is equal to terminal state
+        # the state `0` is equal to `C` and the state `1` is equal to `D` and
+        # `2` is equal to terminal state
         self.action_space = spaces.Discrete(self.number_arms)
 
         # initialize information of game
@@ -60,7 +62,7 @@ class ConstructedMaxBias(Env):
             info = "we are already in the terminal state"
             return 2, 0.0, True, info
         else:
-            raise ValueError(f"state is not valid")
+            raise ValueError("state is not valid")
         self.state = next_state
         self.info = info
         return next_state, reward, done, info
@@ -88,10 +90,9 @@ class ConstructedMaxBias(Env):
         """
         if agent_position == 0:
             return [0, 1,]
-        elif agent_position in [1, 2]:
+        if agent_position in [1, 2]:
             return list(range(self.action_space.n))
-        else:
-            raise ValueError("agent_position is not defined")
+        raise ValueError("agent_position is not defined")
 
     def calculate_probability(self, state: int, action: int) -> np.ndarray:
         """calculate the probability of transitioning to next states given state and action"""
@@ -117,13 +118,12 @@ class ConstructedMaxBias(Env):
     def get_rewards(self, state: np.ndarray, action: int) -> float:
         """get the reward for the next state given the current state and the action"""
         rewards = np.zeros(self.observation_space.n)
-        if state == 0 or state == 2:
+        if state in [0,2]:
             return rewards
-        elif state == 1:
+        if state == 1:
             rewards[2] = np.random.normal(loc=-0.1, scale=1.0)
             return rewards
-        else:
-            raise ValueError(f"state {state} is not in observation space")
+        raise ValueError(f"state {state} is not in observation space")
 
     def costum_sample(self) -> np.ndarray:
         """sample a random state from the environment"""
