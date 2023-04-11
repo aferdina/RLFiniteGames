@@ -9,3 +9,5 @@ en:
   year: Year
   grid_actions: Waehle eine Aktion aus 
   grid-world-text-box-default: Let the games starts
+  grid-world-start-training: Start training
+  grid-world-play-trained-agent: Play trained agent

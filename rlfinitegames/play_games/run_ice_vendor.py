@@ -5,9 +5,10 @@ from rlfinitegames.algorithms.policy_iteration import PolicyIteration, PolicyIte
 
 TOTALSTEPS = 10
 GAME_CONFIG = GameConfig(
-        demand_parameters={"lam": 2.0}, storage_cost=1.0, selling_price=5.0)
+    demand_parameters={"lam": 2.0}, storage_cost=1.0, selling_price=5.0)
 POLICY_ITERATION_PARAMS = PolicyIterationParameter(
-        approach='Naive', epsilon=0.01, gamma=0.9)
+    approach='Naive', epsilon=0.01, gamma=0.9)
+
 
 def main():
     """use policy iteration on ice vendor game"""
@@ -28,6 +29,6 @@ def main():
         if done:
             env_ice.reset()
 
+
 if __name__ == "__main__":
     main()
-

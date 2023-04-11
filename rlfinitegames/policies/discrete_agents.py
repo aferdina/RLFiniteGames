@@ -70,7 +70,7 @@ class FiniteAgent(BaseAgent):
             state (np.ndarray): gamestate of the environment
 
         Returns:
-            action :single action, randomly generated according to policy
+            action (int): single action, randomly generated according to policy
         """
 
         # Update Probabilities
@@ -96,5 +96,8 @@ class FiniteAgent(BaseAgent):
                 state = tuple(state)
             state_prob = self.policy[state]
             state_prob[list(not_pos_actions)] = 0.0
-            state_prob = state_prob/sum(state_prob)
+            if sum(state_prob) == 0.0:
+                state_prob[pos_actions[0]] = 1.0  
+            else: 
+                state_prob = state_prob/sum(state_prob)
             self.policy[state] = state_prob

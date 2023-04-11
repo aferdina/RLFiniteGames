@@ -8,7 +8,6 @@ from rlfinitegames.environments.utils.demandstructure import PoissonRandomVariab
 from rlfinitegames.environments.utils.helpfunctions import rgetattr
 
 START_STATE = 0
-MAXSTEPS = float('inf')
 
 class DemandStructure(Enum):
     """ Different type of Demand structures """
@@ -27,6 +26,7 @@ class GameConfig:
     selling_price: float = 5.0
     demand_structure: DemandStructure = "POISSON"
     demand_parameters: Dict[str, int] = None
+    mean_no_days: int = 20
 
 
 class IceVendor(Env):
@@ -50,9 +50,10 @@ class IceVendor(Env):
         # initialize information of game
         self.info = {}
         # reset the game
-        self.state = self.reset()
+        self.timestep = None
+        self.state = None
+        self.reset()
 
-        self.timestep = 0
 
     def step(self, action: int) -> list[int, float, bool, dict]:
         """ run one step in the environment """
@@ -74,8 +75,8 @@ class IceVendor(Env):
         self.state = next_state
 
         done = False
-
-        if self.timestep >= MAXSTEPS:
+        self.timestep += 1
+        if self.timestep >= self.max_steps:
             done = True
         return next_state, reward, done, info
 
@@ -96,11 +97,11 @@ class IceVendor(Env):
         *,
         seed: Optional[int] = None,
         options: Optional[dict] = None,
-    ):
+    ) -> None:
         super().reset(seed=seed)
-
+        self.max_steps = 100
         self.timestep = 0
-        return START_STATE
+        self.state = START_STATE
 
     def calculate_probability(self, state: int, action: int) -> float:
         """calculate the probability to get in the next by taking action in specific state"""
@@ -137,21 +138,10 @@ class IceVendor(Env):
             self.game_config.max_inventory + 1 - state))
         return valid_actions
 
+    def costum_sample(self) -> int:
+        """ get a random sample from the game state equiv storage
 
-def main():
-    """ run the game """
-
-    game_env = GameConfig(demand_parameters={"lam": 2.0})
-    env = IceVendor(game_env)
-    env.reset()
-    for _ in range(10):
-        action = env.action_space.sample()
-        _next_state, reward, done, info = env.step(action)
-        print(f"total reward for action {action} is {reward}")
-        print(info)
-        if done:
-            env.reset()
-
-
-if __name__ == "__main__":
-    main()
+        Returns:
+            int: potential storage state
+        """
+        return self.observation_space.sample()
