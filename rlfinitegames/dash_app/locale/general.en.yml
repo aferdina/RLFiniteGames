@@ -7,7 +7,9 @@ en:
   select: Select...
   select_all: Select all
   year: Year
-  grid_actions: Waehle eine Aktion aus 
+  grid-actions: Choose an action 
   grid-world-text-box-default: Let the games starts
   grid-world-start-training: Start training
   grid-world-play-trained-agent: Play trained agent
+  grid-world-info-message: "Welcome to the Grid World game!<br> Your goal is to navigate a 10x10 grid and reach the goal cell, which is marked with a star. You can move your character around the grid using four actions up, down, left, and right.<br> To move your character, click on one of the arrow buttons located on the game interface. Each time you make a move, your character will move one cell in the direction you choose. If you reach the goal cell, you win the game!<br> Be careful, though - there are obstacles on the grid that will block your path. If you run into an obstacle, you'll be forced to stay in your current cell for one turn.<br> Good luck, and have fun playing the Grid World game!"
+  grid-world-agent-info-message: "Welcome to the Reinforcement Learning Agent!<br> This agent has been trained using the policy iteration algorithm, which is a popular method for solving Markov decision processes (MDPs). The goal of this agent is to learn how to maximize its reward by taking actions in an environment. <br> To play the game, simply tap the 'Play' button to start a new game. The agent will then make decisions based on its current policy, which has been learned through previous iterations of the algorithm. The policy specifies which actions the agent should take in each state of the environment."

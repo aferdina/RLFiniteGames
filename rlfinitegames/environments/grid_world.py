@@ -11,7 +11,7 @@ START_STATE = np.array([0, 0], dtype=np.int32)
 class GridWorld(Env):
     """ grid world environment """
 
-    def __init__(self, size: int) -> None:
+    def __init__(self, size: int = 5) -> None:
         """ init grid world environment
 
         Args:
@@ -21,7 +21,8 @@ class GridWorld(Env):
             size, int), f"size has to be an int but is {type(size)}"
         assert size > 2, f"size has to be greater than 2 but is {size}"
         self.size = size
-        self.observation_space = spaces.MultiDiscrete([size, size],dtype=np.int32)
+        self.observation_space = spaces.MultiDiscrete(
+            [size, size], dtype=np.int32)
         self.action_space = spaces.Discrete(4)
         self.action_to_direction = {
             0: np.array([1, 0]),        # going down
@@ -30,9 +31,9 @@ class GridWorld(Env):
             3: np.array([0, -1]),       # going left
         }
         self.goal_position = np.array(
-            [size-1, size-1],dtype=np.int32)   # position of the goal
+            [size-1, size-1], dtype=np.int32)   # position of the goal
         self.bomb_position = np.array(
-            [size-2, size-2],dtype=np.int32)   # position of the bomb
+            [size-2, size-2], dtype=np.int32)   # position of the bomb
 
         # reset environment
         self.state = None
@@ -43,17 +44,17 @@ class GridWorld(Env):
 
         done = False
         if action not in valid_action_space:
-            return self.state, 0, done, {}
+            return self.state, 0.0, done, {}
 
         next_state = self.state + self.action_to_direction[action]
         if np.array_equal(next_state, self.goal_position):
             done = True
-            reward = 10
+            reward = 10.0
         elif np.array_equal(next_state, self.bomb_position):
             done = True
-            reward = -10
+            reward = -10.0
         else:
-            reward = -1
+            reward = -1.0
 
         self.state = next_state
         return next_state, reward, done, {}

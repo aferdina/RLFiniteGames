@@ -16,7 +16,7 @@ def render(app: Dash) -> html.Div:
     
     return html.Div(
         children=[
-            html.H6(i18n.t("general.grid_actions")),
+            html.P(i18n.t("general.grid-actions")),
             dcc.Dropdown(
                 id=ids.GRID_WORLD_ACTIONS,
                 options=[

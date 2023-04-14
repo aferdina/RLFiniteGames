@@ -8,5 +8,7 @@ de:
   select: Select...
   select_all: Select all
   year: Year
-  gridactions: Choose an action
+  grid-actions: Suche eine Aktion aus
   grid-world-text-box-default: Lasset die Spiele beginnen
+  grid-world-info-message: "Willkommen beim Spiel Grid World!<br> Dein Ziel ist es, durch ein 10x10-Gitter zu navigieren und die Zielzelle zu erreichen, die mit einem Stern markiert ist. Du kannst deine Spielfigur auf dem Raster bewegen, indem du vier Aktionen ausführst: nach oben, unten, links und rechts. Um Ihre Figur zu bewegen, klicken Sie auf eine der Pfeilschaltflächen auf der Spieloberfläche. Each time you make a move, your character will move one cell in the direction you choose. Wenn du das Zielfeld erreichst, hast du das Spiel gewonnen!<br> Aber sei vorsichtig - es gibt Hindernisse auf dem Spielfeld, die dir den Weg versperren können. Wenn du auf ein Hindernis triffst, bist du gezwungen, eine Runde lang in deinem aktuellen Feld zu bleiben.<br> Viel Glück und viel Spaß beim Spielen des Grid World Spiels!"
+  grid-world-agent-info-message: "Willkommen bei dem Reinforcement Learning Agent!<br> Dieser Agent wurde mit dem Policy-Iterationsalgorithmus trainiert, einer beliebten Methode zur Lösung von Markov-Entscheidungsprozessen (MDPs). Das Ziel des Spiels ist es Aktionen zu Spielen, um die Belohnungen während des Spiels zu maximieren. Um das Spiel zu spielen, tippen Sie einfach auf die Schaltfläche 'Spielen', um ein neues Spiel zu beginnen. Der Agent trifft dann Entscheidungen auf der Grundlage seiner aktuellen Strategie, die durch vorherige Iterationen des Algorithmus gelernt wurde. Die Entscheidungsregel legt fest, welche Aktionen der Agent in jedem Zustand der Umgebung durchführen soll."

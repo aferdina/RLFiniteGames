@@ -1,6 +1,6 @@
 # gridworld backend for the dash app
 from rlfinitegames.environments.grid_world import GridWorld
-import numpy as np 
+import numpy as np
 import plotly.graph_objs as go
 
 
@@ -16,7 +16,8 @@ def create_matrix(state: list[int], env: GridWorld) -> np.ndarray:
     texts[env.goal_position[0]][env.goal_position[1]] = "T"
     return matrix, texts
 
-def costum_render(state:list[int], env: GridWorld):
+
+def costum_render(state: list[int], env: GridWorld) -> go.Figure:
 
     matrix_plot, texts = create_matrix(state=state, env=env)
 
@@ -26,16 +27,15 @@ def costum_render(state:list[int], env: GridWorld):
     y_tickvals = np.arange(env.size)
     y_ticktext = [str(i) for i in y_tickvals]
 
-
     # Create a Plotly heatmap object with the matrix and color scale
-    heatmap = go.Heatmap(z=matrix_plot, text=texts)
+    heatmap = go.Heatmap(z=matrix_plot, text=texts,showscale=False)
 
     # Create a Plotly figure object with the heatmap
     fig = go.Figure(data=[heatmap])
 
     # Set the title of the figure
     fig.update_layout(title='Grid World', height=500, width=500, xaxis={'tickvals': x_tickvals, 'ticktext': x_ticktext}, yaxis={
-                    'tickvals': y_tickvals, 'ticktext': y_ticktext, "autorange": 'reversed'})
+        'tickvals': y_tickvals, 'ticktext': y_ticktext, "autorange": 'reversed'}, showlegend=False)
     # Add text annotations to the heatmap
     for i in range(env.size):
         for j in range(env.size):

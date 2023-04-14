@@ -6,6 +6,8 @@ from rlfinitegames.dash_app.source.backend_gridworld import costum_render
 from dash.exceptions import PreventUpdate
 from dash.dcc import Textarea
 from typing import Union
+import i18n
+
 ENVIRONMENT = GridWorld(size=10)
 
 
@@ -17,7 +19,7 @@ def render(app: Dash) -> html.Div:
             Input(ids.GRID_WORLD_TRAINED_AGENT_VALUE, "children")
         ],
     )
-    def update_figure(action: Union[str,None]):
+    def update_figure(action: Union[str, None]):
         if action is None:
             raise PreventUpdate()
         action = int(action)
@@ -32,8 +34,8 @@ def render(app: Dash) -> html.Div:
                 ENVIRONMENT.reset()
                 next_state = ENVIRONMENT.state
             info = info = f"reward: {reward}, next state: {next_state}, done: {done}"
-                # Create figure from the new state
-            fig = costum_render(state=next_state.tolist(),env=ENVIRONMENT)
+            # Create figure from the new state
+            fig = costum_render(state=next_state.tolist(), env=ENVIRONMENT)
 
         return fig, info
 
@@ -44,6 +46,7 @@ def render(app: Dash) -> html.Div:
                 figure=costum_render(
                     state=ENVIRONMENT.state.tolist(), env=ENVIRONMENT)
             ),
-            Textarea(id=ids.GRID_WORLD_TEXT_BOX_TRAINED_AGENT, value="Let the game started")
+            Textarea(id=ids.GRID_WORLD_TEXT_BOX_TRAINED_AGENT,
+                     value=i18n.t('general.grid-world-text-box-default'))
         ]
     )
