@@ -82,7 +82,7 @@ class GridWorld(Env):
         if agent_position[1] == 0:
             valid_actions.remove(3)
         if agent_position[0] == self.size-1:
-            valid_actions.remove(4)
+            valid_actions.remove(0)
         if agent_position[1] == self.size-1:
             valid_actions.remove(1)
         return valid_actions
