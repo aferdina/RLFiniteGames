@@ -76,7 +76,7 @@ class PolicyIteration():
                     new_value += self.agent.policy[state][action] * \
                         q_values[state][action]
                 value_func_new[state] = new_value
-            print(f"New Value Func: {value_func_new}")
+            #print(f"New Value Func: {value_func_new}")
             # check if the new value function is in an epsilon environment of the old value function
             if ((value_func_new - self.value_func) < self.policyparameter.epsilon).all():
                 done = True

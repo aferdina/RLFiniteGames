@@ -190,13 +190,13 @@ class OneStepDynamicProgramming():
             self.logger.debug(f"policy is given by {self.agent.policy}")
             if self.policyparameter.run_time_method == RunTimeMethod.CRITERION.value:
                 if (np.abs(self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
-                    entropies = np.apply_along_axis(
-                        lambda x: entropy(x, base=2), axis=-1, arr=self.agent.policy.copy())
-                    self.logger.debug(f"entropies is given by {entropies}")
-                    if (entropies < self.policyparameter.epsilon).all():
-                        done = True
-                        self.logger.info(
-                            "policy_iteration_sarsa_evalulation is converged")
+                    # entropies = np.apply_along_axis(
+                    #     lambda x: entropy(x, base=2), axis=-1, arr=self.agent.policy.copy())
+                    # self.logger.debug(f"entropies is given by {entropies}")
+                    # if (entropies < self.policyparameter.epsilon).all():
+                    done = True
+                    self.logger.info(
+                        "policy_iteration_sarsa_evalulation is converged")
                 if counter % self.policyparameter.decay_steps == 0:
                     self.logger.debug(f"number of steps {counter}")
                     self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
