@@ -20,7 +20,7 @@ def render(app: Dash) -> html.Div:
     )
     def update_figure(action: str, n_clicks: int):
         action = int(action)
-        print(f"action: {action}, n_clicks: {n_clicks}")
+        #print(f"action: {action}, n_clicks: {n_clicks}")
         if n_clicks is None:
             raise PreventUpdate
         valid_actions = ENVIRONMENT.get_valid_actions(ENVIRONMENT.state)

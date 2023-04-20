@@ -23,8 +23,8 @@ def render(app: Dash) -> html.Div:
             raise PreventUpdate
         else:
             action = GRID_WORLD_POLICY_ITERATION.agent.get_action(ENVIRONMENT.state)
-        print(f"state was is {ENVIRONMENT.state}")
-        print(f"action was is {action}")
+        #print(f"state was is {ENVIRONMENT.state}")
+        #print(f"action was is {action}")
         return str(action)
     
     return html.Div(

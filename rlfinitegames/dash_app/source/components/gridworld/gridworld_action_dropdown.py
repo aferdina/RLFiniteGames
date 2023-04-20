@@ -3,17 +3,18 @@ from rlfinitegames.dash_app.source.components import ids
 import i18n
 from dash.dependencies import Input, Output
 
+
 def render(app: Dash) -> html.Div:
     @app.callback(
-         Output(ids.GRID_WORLD_ACTION_VALUE, "children"),
+        Output(ids.GRID_WORLD_ACTION_VALUE, "children"),
         [
             Input(ids.GRID_WORLD_ACTIONS, "value"),
         ],
     )
     def update_grid_action_value(dropdown_value: int) -> str:
-        print(f"dropdown value is {dropdown_value}")
+        # print(f"dropdown value is {dropdown_value}")
         return str(dropdown_value)
-    
+
     return html.Div(
         children=[
             html.P(i18n.t("general.grid-actions")),
@@ -27,6 +28,7 @@ def render(app: Dash) -> html.Div:
                 ],
                 value=0
             ),
-            html.Div(str(0),id=ids.GRID_WORLD_ACTION_VALUE, style={'display': 'none'})
+            html.Div(str(0), id=ids.GRID_WORLD_ACTION_VALUE,
+                     style={'display': 'none'})
         ]
     )

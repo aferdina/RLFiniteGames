@@ -19,7 +19,9 @@ def render(app: Dash) -> html.Div:
         if start_training is None:
             raise PreventUpdate
         else:
+            # print(f"policy before policy iteration {GRID_WORLD_POLICY_ITERATION.agent.policy}")
             GRID_WORLD_POLICY_ITERATION.policy_iteration()
+            # print(f"policy after policy iteration {GRID_WORLD_POLICY_ITERATION.agent.policy}")
         return ""
 
     return html.Div(

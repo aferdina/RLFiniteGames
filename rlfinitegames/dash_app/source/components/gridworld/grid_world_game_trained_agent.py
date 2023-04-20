@@ -23,7 +23,8 @@ def render(app: Dash) -> html.Div:
         if action is None:
             raise PreventUpdate()
         action = int(action)
-        print(f"action: {action}, n_clicks")
+        # TODO: add a logger module to the dash app
+        #print(f"action: {action}, n_clicks")
         valid_actions = ENVIRONMENT.get_valid_actions(ENVIRONMENT.state)
         if action not in valid_actions:
             fig = costum_render(ENVIRONMENT.state, env=ENVIRONMENT)

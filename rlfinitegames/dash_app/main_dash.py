@@ -4,7 +4,7 @@ from dash_bootstrap_components.themes import BOOTSTRAP
 from rlfinitegames.dash_app.source.components.layout import create_layout
 
 
-LOCALE = "de"
+LOCALE = "en"
 
 
 def main() -> None:
