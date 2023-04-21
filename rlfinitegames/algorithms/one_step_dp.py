@@ -19,7 +19,6 @@ FILENAME = "one_step_dp"
 LOGGING_LEVEL = logging.DEBUG
 LOGGING_CONSOLE_LEVEL = logging.INFO
 LOGGING_FILE_LEVEL = logging.DEBUG
-# initialize logging module
 
 # TODO: not use lazy % formatting in logging function
 # pylint: disable=W1203
