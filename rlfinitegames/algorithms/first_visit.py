@@ -1,68 +1,38 @@
 """ Implementation of value iteration and policy iteration for finite gym environments
 """
 import random
-from dataclasses import dataclass
 from typing import Union
-from enum import Enum
+import logging
 import numpy as np
 from gym import Env, spaces
 from rlfinitegames.policies.discrete_agents import FiniteAgent
-from rlfinitegames.environments.grid_world import GridWorld
-from rlfinitegames.environments.ice_vendor import IceVendor, GameConfig
 from itertools import product
-
-# define all possible policy iteration approaches
-class PolicyIterationApproaches(Enum):
-    """ Enumeration of all possible policy iteration approaches"""
-    NAIVE = 'Naive'
-    SWEEP = 'Sweep'
-
-# define all possible policy iteration approaches
+from rlfinitegames.logging_module.setup_logger import setup_logger
+from rlfinitegames.algorithms.helperclasses import PolicyIterationParameter, MonteCarloPolicyIterationParameters, MonteCarloApproaches
 
 
-class MonteCarloApproaches(Enum):
-    """ Enumeration of all possible policy iteration approaches"""
-    STATE_ACTION_FUNCTION = 'StateActionFunction'
-    VALUE_FUNCTION = 'ValueFunction'
-
-# setting required parameters for policy iteration
-
-
-@dataclass
-class MonteCarloPolicyIterationParameters:
-    montecarloapproach: MonteCarloApproaches
-    valuefunctioninit: Union[float, None] = None
-    stateactionfunctioninit: Union[float, None] = None
-    invalidstateactionvalue: Union[float, None] = None
+# statics for logging purposes
+LOGGINGPATH = "rlfinitegames/logging_module/logfiles/"
+FILENAME = "firstvisit"
+LOGGING_LEVEL = logging.DEBUG
+LOGGING_CONSOLE_LEVEL = logging.INFO
+LOGGING_FILE_LEVEL = logging.DEBUG
 
 
-@dataclass
-class PolicyIterationParameter:
+class MonteCarloPolicyIteration():
     """
-    Class for Policy Evaluation for Naive or Sweep Approach
-
-    :param approach: String that specifies which approach to use (Naive or Sweep)
-    :param epsilon: float variable that determines termination criterium
-    :param gamma: float that represents the discount factor
-    """
-    epsilon: float = 0.01
-    gamma: float = 0.95
-    approach: PolicyIterationApproaches = PolicyIterationApproaches.NAIVE
-    epsilon_greedy: float = 0.1
-    epsilon_greedy_decay: float = 1.0
-    decay_steps: int = 1
-
-
-class PolicyIteration():
-    """
-    Class for Policy Evaluation for Naive or Sweep Approach
+    Class for Monte Carlo Policy Evaluation for Naive or Sweep Approach
 
     :param policy: define the agent's policy
     :param environment: environment class
     """
-    # pylint: disable=line-too-long
 
-    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.001, gamma=0.95, epsilon_greedy=0.5, epsilon_greedy_decay=0.95), verbose: int = 0, montecarloparameter: MonteCarloPolicyIterationParameters = MonteCarloPolicyIterationParameters(stateactionfunctioninit=20.0, valuefunctioninit=20.0, montecarloapproach="StateActionFunction", invalidstateactionvalue=-100.0)) -> None:
+    def __init__(self, environment: Union[Env, str],
+                 policy=FiniteAgent(),
+                 policyparameter: PolicyIterationParameter = PolicyIterationParameter(
+                     approach='Naive', epsilon=0.001, gamma=0.95, epsilon_greedy=0.5, epsilon_greedy_decay=0.95),
+                 verbose: int = 0,
+                 montecarloparameter: MonteCarloPolicyIterationParameters = MonteCarloPolicyIterationParameters(stateactionfunctioninit=20.0, valuefunctioninit=20.0, montecarloapproach="StateActionFunction", invalidstateactionvalue=-100.0)) -> None:
         # TODO: adding sweep approach to the algorithm
         self.policyparameter = policyparameter  # policy evaluation parameter
         self.environment = environment  # environment class
@@ -74,6 +44,13 @@ class PolicyIteration():
         self.state_type = None
         self.init_state_type()
 
+        self.logger = setup_logger(logger_name=__name__,
+                                   logger_level=LOGGING_LEVEL,
+                                   log_file=LOGGINGPATH + FILENAME + ".log",
+                                   file_handler_level=LOGGING_FILE_LEVEL,
+                                   stream_handler_level=LOGGING_CONSOLE_LEVEL,
+                                   console_output=True)
+
         if self.montecarloparameter.montecarloapproach == MonteCarloApproaches.VALUE_FUNCTION.value:
             self.value_func = self.init_value_function(
                 self.montecarloparameter.valuefunctioninit)
@@ -81,8 +58,26 @@ class PolicyIteration():
         if self.montecarloparameter.montecarloapproach == MonteCarloApproaches.STATE_ACTION_FUNCTION.value:
             self.state_action_function = self.init_state_action_function(
                 self.montecarloparameter.stateactionfunctioninit)
+        else:
+            raise NotImplementedError(
+                "Other monte carlo approaches are not supported yet")
+        
+        if not isinstance(self.environment.observation_space, (spaces.MultiDiscrete, spaces.Discrete)):
+            raise NotImplementedError("The observation space must be of type Discrete or MultiDiscrete")
 
+    # TODO: adding negativ value for invalid action as parameter
     def init_state_action_function(self, state_action_init: float) -> np.ndarray:
+        """ initialize state action function, depending on itialization value
+
+        Args:
+            state_action_init (float): _description_
+
+        Raises:
+            NotImplementedError: _description_
+
+        Returns:
+            np.ndarray: _description_
+        """
         state_action_function = np.ones_like(
             self.agent.policy) * state_action_init
         # Unterscheide zwischen den Faellen
@@ -111,20 +106,16 @@ class PolicyIteration():
         if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
             value_func = np.ones_like(
                 self.environment.observation_space.nvec) * value_func_init
-        elif isinstance(self.environment.observation_space, spaces.Discrete):
+        if isinstance(self.environment.observation_space, spaces.Discrete):
             value_func = np.ones_like(
                 self.environment.observation_space.n) * value_func_init
-        else:
-            raise NotImplementedError(f"Unknown environment type")
         return value_func
 
     def init_state_type(self):
         if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
             self.state_type = 'MultiDiscrete'
-        elif isinstance(self.environment.observation_space, spaces.Discrete):
+        if isinstance(self.environment.observation_space, spaces.Discrete):
             self.state_type = 'Discrete'
-        else:
-            raise NotImplementedError(f"Unknown environment type")
 
     def evaluate_state_action_func(self) -> None:
         state_action_func_new = self.init_state_action_function(
@@ -152,9 +143,9 @@ class PolicyIteration():
                 action = self.agent.get_action(next_state)
                 trajectory["reward"].append(reward)
             # TODO: update only for one sample
-            # update the estimator for only one sample 
+            # update the estimator for only one sample
             # update estimator for value function, with trick
-            print(f"evaluate trajectories")
+            self.logger.debug("evaluate trajectories")
             for index, (state, action) in reversed(list(enumerate(list(zip(trajectory["state"], trajectory["action"]))))):
                 if not any(np.array_equal(arr_state, state) and np.array_equal(arr_action, action) for arr_state, arr_action in list(zip(trajectory['state'], trajectory['action']))[:index]):
                     if self.state_type == 'MultiDiscrete':
@@ -178,9 +169,12 @@ class PolicyIteration():
             self.state_action_function = state_action_func_new.copy()
 
     def policy_improvement_state_action_func(self) -> None:
+        """ using epsilon greedy policy improvent to gain improved policy from state action function 
+        """
         max_indices = np.argmax(self.state_action_function, axis=-1)
+        # TODO: replacing self.agent.policy.copy by shape parameter of policy
         self.agent.policy = np.ones_like(
-            self.agent.policy) * self.policyparameter.epsilon_greedy/(self.environment.action_space.n - 1)
+            self.agent.policy.copy()) * self.policyparameter.epsilon_greedy/(self.environment.action_space.n - 1)
 
         self.agent.policy[tuple(np.indices(
             self.state_action_function.shape[:-1])) + (max_indices,)] = 1 - self.policyparameter.epsilon_greedy
@@ -206,7 +200,7 @@ class PolicyIteration():
                 _next_state, reward, done, _ = self.environment.step(action)
                 trajectory["reward"].append(reward)
             # update estimator for value function
-            
+
             for index, state in reversed(list(enumerate(trajectory["state"]))):
                 if not any(np.array_equal(arr, state) for arr in trajectory['state'][:index]):
                     if self.state_type == 'MultiDiscrete':
@@ -295,7 +289,8 @@ class PolicyIteration():
         counter = 0
         while not done:
             old_policy = self.agent.policy.copy()
-            print(f"monte carlo approach is {self.montecarloparameter.montecarloapproach}")
+            print(
+                f"monte carlo approach is {self.montecarloparameter.montecarloapproach}")
             if self.montecarloparameter.montecarloapproach == MonteCarloApproaches.VALUE_FUNCTION.value:
                 self.evaluate_value_func()
                 self.epsilongreedyimprove()
@@ -311,39 +306,3 @@ class PolicyIteration():
             if counter % self.policyparameter.decay_steps == 0:
                 self.policyparameter.epsilon_greedy *= self.policyparameter.epsilon_greedy_decay
 
-
-def main():
-    """run policy iteration on grid world game"""
-    total_steps = 10
-    # set size of grid world
-    size = int(input("Please provide size of Grid World Environment: "))
-    # initialize agent
-    agent = FiniteAgent(env=GridWorld(size=size))
-    # initialize grid world environment
-    env = GridWorld(size=size)
-    #game_env = GameConfig(demand_parameters={"lam": 2.0})
-    #env = IceVendor(game_config=game_env)
-    #agent = FiniteAgent(env=env)
-    monte_carlo_parameters = MonteCarloPolicyIterationParameters(
-        montecarloapproach="StateActionFunction", stateactionfunctioninit=20.0, invalidstateactionvalue=-1000000.0)
-    policy_parameter = PolicyIterationParameter(
-        epsilon_greedy=0.3, gamma=0.95, approach="Naive", decay_steps=3, epsilon=0.01, epsilon_greedy_decay=0.95)
-    # run policy iteration
-    algo = PolicyIteration(environment=env, policy=agent, montecarloparameter=monte_carlo_parameters, policyparameter=policy_parameter)
-    # algo.policy_iteration()
-    algo.policy_iteration_monte_carlo()
-    env.reset()
-
-    for _ in range(total_steps):
-        action = algo.agent.get_action(env.state)
-        print(f"action is {action}")
-        _next_state, reward, done, _ = env.step(action)
-        print(f"next state: {_next_state}, reward: {reward}, done: {done}")
-        print(done)
-        if done:
-            env.reset()
-        env.render()
-
-
-if __name__ == "__main__":
-    main()
