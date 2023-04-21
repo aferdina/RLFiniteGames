@@ -9,6 +9,7 @@ from rlfinitegames.environments.utils.helpfunctions import rgetattr
 
 # we start with an empty storage
 START_STATE = 0
+MAX_STEPS = 100
 
 
 class DemandStructure(Enum):
@@ -22,13 +23,12 @@ class DemandStructure(Enum):
 class GameConfig:
     """ Game configuration
     """
-    max_inventory: int = 20
-    production_cost: float = 2.0
-    storage_cost: float = 1.0
-    selling_price: float = 5.0
-    demand_structure: DemandStructure = "POISSON"
-    demand_parameters: Dict[str, int] = None
-    mean_no_days: int = 20
+    max_inventory: int = 20  # maximum inventory
+    production_cost: float = 2.0  # production cost for ice cream production
+    storage_cost: float = 1.0  # storage cost for ice cream over night
+    selling_price: float = 5.0  # selling price for ice cream over night
+    demand_structure: DemandStructure = "POISSON"  # demand structure
+    demand_parameters: Dict[str, int] = None  # parameter of demand structure
 
 
 class IceVendor(Env):
@@ -60,6 +60,7 @@ class IceVendor(Env):
         # reset the game
         self.timestep = None
         self.state = None
+        self.max_steps = None
         self.reset()
 
     def step(self, action: int) -> list[int, float, bool, dict]:
@@ -134,7 +135,7 @@ class IceVendor(Env):
         """
         # TODO: Can someone explain Andre the options attribute from the base class
         super().reset(seed=seed)
-        self.max_steps = 100
+        self.max_steps = MAX_STEPS
         self.timestep = 0
         self.state = START_STATE
 
@@ -148,11 +149,14 @@ class IceVendor(Env):
         Returns:
             List[float]: Probability vector for all of the next states
         """
+        # create a list for all next states
         prob_next_state = [0.0 for _ in range(
             self.game_config.max_inventory + 1)]
 
+        # calculat the next state without considering any demand
         next_state_without_demand = min(
             state + action, self.game_config.max_inventory)
+        # calculte the probability of a next state given the formular of the lecture
         prob_next_state[0] = (sum(self.demand_structure.pmf(
             next_state_without_demand + i) for i in range(self.game_config.max_inventory - next_state_without_demand + 1)))
         for index in range(1, next_state_without_demand + 1):
@@ -160,7 +164,7 @@ class IceVendor(Env):
                 next_state_without_demand - index)
         return prob_next_state
 
-    def get_rewards(self, state: int, action: int) -> list[float]:
+    def get_rewards(self, state: int, action: int) -> List[float]:
         """get the rewards for a given state and action
 
         Args:
