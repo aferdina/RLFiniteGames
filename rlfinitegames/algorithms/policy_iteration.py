@@ -8,8 +8,11 @@ from gym import Env, spaces
 from rlfinitegames.policies.discrete_agents import FiniteAgent
 from rlfinitegames.environments.grid_world import GridWorld
 
-
+# TODO: adding a logger module to this file
 # define all possible policy iteration approaches
+# TODO: add Sweep Approach from lecture
+
+
 class PolicyIterationApproaches(Enum):
     """ Enumeration of all possible policy iteration approaches"""
     NAIVE = 'Naive'
@@ -39,9 +42,14 @@ class PolicyIteration():
     :param policy: define the agent's policy
     :param environment: environment class
     """
-    # pylint: disable=line-too-long
 
-    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: PolicyIterationParameter = PolicyIterationParameter(approach='Naive', epsilon=0.01, gamma=0.9), verbose: int = 0) -> None:
+    def __init__(self, environment: Union[Env, str] = GridWorld(5),
+                 policy=FiniteAgent(),
+                 policyparameter: PolicyIterationParameter = PolicyIterationParameter(
+            approach='Naive',
+            epsilon=0.01,
+            gamma=0.9),
+            verbose: int = 0) -> None:
         # TODO: adding sweep approach to the algorithm
         self.policyparameter = policyparameter  # policy evaluation parameter
         self.environment = environment  # environment class
@@ -54,8 +62,11 @@ class PolicyIteration():
         if isinstance(self.environment.observation_space, spaces.Discrete):
             self.value_func = np.zeros(self.environment.observation_space.n)
             self.state_type = 'Discrete'
+        else:
+            raise NotImplementedError(
+                "Only MultiDiscrete and Discrete are currently supported")
 
-    def evaluate(self) -> None:
+    def _evaluate(self) -> None:
         """
         use policy evaluation to get the value function from the current policy"""
         # Update the value function according the current policy
@@ -67,23 +78,22 @@ class PolicyIteration():
             if self.state_type == "Discrete":
                 states = range(self.environment.observation_space.n)
             elif self.state_type == "MultiDiscrete":
-                states = [tuple(state) for state in np.ndindex(self.value_func.shape)]
-            else:
-                raise ValueError(f"Unknown state type: {self.state_type}")
+                states = [tuple(state)
+                          for state in np.ndindex(self.value_func.shape)]
             for state in states:
                 new_value = 0.0
                 for action in range(self.environment.action_space.n):
                     new_value += self.agent.policy[state][action] * \
                         q_values[state][action]
                 value_func_new[state] = new_value
-            #print(f"New Value Func: {value_func_new}")
+            # print(f"New Value Func: {value_func_new}")
             # check if the new value function is in an epsilon environment of the old value function
-            if ((value_func_new - self.value_func) < self.policyparameter.epsilon).all():
+            if (np.abs(value_func_new - self.value_func) < self.policyparameter.epsilon).all():
                 done = True
                 return
             self.value_func = value_func_new.copy()
 
-    def improve(self) -> None:
+    def _improve(self) -> None:
         """ improve the current policy of the agent by using a policy improvement step
         """
         # improve policy of the agent
@@ -91,7 +101,7 @@ class PolicyIteration():
         max_indices = np.argmax(q_values, axis=-1)
         self.agent.policy = np.zeros_like(self.agent.policy)
         self.agent.policy[tuple(np.indices(
-            q_values.shape[:-1])) + (max_indices,)] = 1
+            q_values.shape[:-1])) + (max_indices,)] = 1.0
 
     def _calculate_q_function_general(self) -> np.ndarray:
         q_values = np.zeros_like(self.agent.policy)  # initialize q_values
@@ -117,9 +127,12 @@ class PolicyIteration():
                     for i, prob_next_state in enumerate(prob_next_states):
                         value_function_next_step += prob_next_state * \
                             self.value_func[i]
-                else:
+                elif self.state_type == 'MultDiscrete':
                     reward_state_action = np.sum(prob_next_states * rewards)
-                    value_function_next_step = np.sum(prob_next_states * self.value_func)
+                    value_function_next_step = np.sum(
+                        prob_next_states * self.value_func)
+                else: 
+                    raise NotImplementedError("Not supported environment")
 
                 q_values[state][act] += reward_state_action + \
                     self.policyparameter.gamma*value_function_next_step
@@ -130,7 +143,8 @@ class PolicyIteration():
         done = False
         while not done:
             old_policy = self.agent.policy
-            self.evaluate()
-            self.improve()
-            if ((self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
+            self._evaluate()
+            self._improve()
+            # if supremumsnorm is smaller than epsilon parameter
+            if (np.abs(self.agent.policy - old_policy) < self.policyparameter.epsilon).all():
                 done = True
