@@ -27,7 +27,7 @@ class GameConfig:
     production_cost: float = 2.0  # production cost for ice cream production
     storage_cost: float = 1.0  # storage cost for ice cream over night
     selling_price: float = 5.0  # selling price for ice cream over night
-    demand_structure: DemandStructure = "POISSON"  # demand structure
+    demand_structure: DemandStructure = DemandStructure.POISSON  # demand structure
     demand_parameters: Dict[str, int] = None  # parameter of demand structure
 
 
@@ -53,7 +53,7 @@ class IceVendor(Env):
 
         # TODO: fix wrong usage of Enum class
         # initialize the demand structure
-        self.demand_structure = rgetattr(DemandStructure, f"{self.game_config.demand_structure}.value")(
+        self.demand_structure = getattr(self.game_config.demand_structure,"value")(
             max_inventory=self.game_config.max_inventory, **self.game_config.demand_parameters)
 
         # initialize information of game
