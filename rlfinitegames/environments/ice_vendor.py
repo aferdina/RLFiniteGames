@@ -51,6 +51,7 @@ class IceVendor(Env):
         self.observation_space = spaces.Discrete(
             self.game_config.max_inventory + 1)
 
+        # TODO: fix wrong usage of Enum class
         # initialize the demand structure
         self.demand_structure = rgetattr(DemandStructure, f"{self.game_config.demand_structure}.value")(
             max_inventory=self.game_config.max_inventory, **self.game_config.demand_parameters)
