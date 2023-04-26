@@ -44,6 +44,7 @@ class DoubleParameter:
                                        "initialization parameter for state action function"})
     epsilon_greedy: float = field(
         default=0.1, metadata={"description": "epsilon greedy parameter"})
+    
     rate: float = field(default=1.0, metadata={
                         "description": "rate parameter for step size"})
     method: PolicyMethod = field(default=PolicyMethod.BEHAVIOUR.value, metadata={
@@ -272,6 +273,7 @@ def main():
         epsilon=0.01, runtimemethod=RunTimeMethod.EPISODES.value, episodes=10000, updatemethod=UpdateMethod.TRUNCUATED.value, trunc_bounds=TruncatedBounds(lower_bound=10.0,upper_bound=10.0))
     algo = DoubleStateActionLearning(
         environment=env, policy=agent, algo_params=parameter, policy_method=PolicyMethod.BEHAVIOUR)
+    algo.run_double_state_action_learning()
     env.reset()
     for _ in range(TOTALSTEPS):
         action = algo.agent.get_action(env.state)
