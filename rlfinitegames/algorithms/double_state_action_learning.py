@@ -6,6 +6,7 @@ from typing import Union
 from enum import Enum
 from gym import Env, spaces
 from rlfinitegames.environments.grid_world import GridWorld
+from rlfinitegames.environments.constructed_max_bias import ConstructedMaxBias
 from rlfinitegames.logging_module.setup_logger import setup_logger
 from rlfinitegames.policies.discrete_agents import FiniteAgent
 import numpy as np
@@ -211,9 +212,7 @@ class DoubleStateActionLearning():
                 updated_function_pos = random.choice(list(index_set))
                 # drop used index to get state action function for estimating the maximum value
                 index_set.remove(updated_function_pos)
-                # TODO: get position of argmax from state action function
-                # updating state action function given update rule
-                # TODO: adding clipped state action function learning
+                # TODO: add updating all state action functions at once
                 if self.policyparameter.updatemethod == UpdateMethod.PLAIN.value:
                     update_value = reward + self.policyparameter.gamma * state_action_functions[random.choice(list(
                         index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])]
@@ -224,10 +223,11 @@ class DoubleStateActionLearning():
                                 index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])]-state_action_functions[random.choice(list(
                                     index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])]), a_min=-self.policyparameter.trunc_bounds.lower_bound * alpha, a_max=self.policyparameter.trunc_bounds.upper_bound * alpha)
                 elif self.policyparameter.updatemethod == UpdateMethod.CLIPPED.value:
-                    update_value = reward + self.policyparameter.gamma * np.min(state_action_functions[updated_function_pos][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])], state_action_functions[random.choice(list(
+                    update_value = reward + self.policyparameter.gamma * np.minimum(state_action_functions[updated_function_pos][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])], state_action_functions[random.choice(list(
                         index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])])
-                else: 
-                    raise ValueError("Invalid method for updating the state action function")
+                else:
+                    raise ValueError(
+                        "Invalid method for updating the state action function")
                 state_action_functions[updated_function_pos][state_pos][action] = state_action_functions[updated_function_pos][state_pos][action] + alpha * (
                     update_value - state_action_functions[updated_function_pos][state_pos][action])
                 number_of_times_played[state_pos][action] += 1
@@ -253,15 +253,25 @@ class DoubleStateActionLearning():
 
 
 def main():
-    SIZE = 5
     TOTALSTEPS = 10
+    # SIZE = 5
+    # parameter = DoubleParameter(
+    #     epsilon=0.01, runtimemethod=RunTimeMethod.EPISODES.value, episodes=10000, updatemethod=UpdateMethod.TRUNCUATED.value, trunc_bounds=TruncatedBounds(lower_bound=10.0,upper_bound=10.0))
+    # env = GridWorld(size=SIZE)
+    # agent = FiniteAgent(env)
+    # algo = DoubleStateActionLearning(
+    #     environment=env, policy=agent, algo_params=parameter, policy_method=PolicyMethod.EPSILONGREEDY)
+    # algo.run_double_state_action_learning()
+    # env.reset()
+    ### Constructed Max Bias ###
+
+
+    env = ConstructedMaxBias(number_arms=5)
+    agent = FiniteAgent(env=env, policy_type="uniform")
     parameter = DoubleParameter(
-        epsilon=0.01, runtimemethod=RunTimeMethod.EPISODES.value, episodes=10000, updatemethod=UpdateMethod.PLAIN.value)
-    env = GridWorld(size=SIZE)
-    agent = FiniteAgent(env)
+        epsilon=0.01, runtimemethod=RunTimeMethod.EPISODES.value, episodes=10000, updatemethod=UpdateMethod.TRUNCUATED.value, trunc_bounds=TruncatedBounds(lower_bound=10.0,upper_bound=10.0))
     algo = DoubleStateActionLearning(
-        environment=env, policy=agent, algo_params=parameter, policy_method=PolicyMethod.EPSILONGREEDY)
-    algo.run_double_state_action_learning()
+        environment=env, policy=agent, algo_params=parameter, policy_method=PolicyMethod.BEHAVIOUR)
     env.reset()
     for _ in range(TOTALSTEPS):
         action = algo.agent.get_action(env.state)
