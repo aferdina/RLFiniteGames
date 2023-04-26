@@ -9,7 +9,7 @@ from rlfinitegames.environments.grid_world import GridWorld
 from rlfinitegames.logging_module.setup_logger import setup_logger
 from rlfinitegames.policies.discrete_agents import FiniteAgent
 import numpy as np
-from rlfinitegames.algorithms.helperclasses import RunTimeMethod, PolicyMethod
+from rlfinitegames.algorithms.helperclasses import RunTimeMethod, PolicyMethod, UpdateMethod, TruncatedBounds
 
 # statics for logging purposes
 LOGGINGPATH = "rlfinitegames/logging_module/logfiles/"
@@ -51,6 +51,10 @@ class DoubleParameter:
                           "description": "number of episodes the algorithm is running"})
     runtimemethod: RunTimeMethod = field(default=RunTimeMethod.CRITERION.value, metadata={
                                          "description": "run time method"})
+    updatemethod: UpdateMethod = field(default=UpdateMethod.PLAIN.value, metadata={
+                                       "description": "update method from robbins siegmund"})
+    trunc_bounds: TruncatedBounds = field(
+        default_factory=lambda: TruncatedBounds(lower_bound=10.0, upper_bound=10.0))
 
 
 class DoubleStateActionLearning():
@@ -209,9 +213,23 @@ class DoubleStateActionLearning():
                 index_set.remove(updated_function_pos)
                 # TODO: get position of argmax from state action function
                 # updating state action function given update rule
-                #TODO: adding clipped state action function learning
+                # TODO: adding clipped state action function learning
+                if self.policyparameter.updatemethod == UpdateMethod.PLAIN.value:
+                    update_value = reward + self.policyparameter.gamma * state_action_functions[random.choice(list(
+                        index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])]
+                elif self.policyparameter.updatemethod == UpdateMethod.TRUNCUATED.value:
+                    update_value = reward + self.policyparameter.gamma * \
+                        state_action_functions[updated_function_pos][next_state_pos][np.argmax(
+                            state_action_functions[updated_function_pos][next_state_pos])] + self.policyparameter.gamma * np.clip(a=np.min(state_action_functions[random.choice(list(
+                                index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])]-state_action_functions[random.choice(list(
+                                    index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])]), a_min=-self.policyparameter.trunc_bounds.lower_bound * alpha, a_max=self.policyparameter.trunc_bounds.upper_bound * alpha)
+                elif self.policyparameter.updatemethod == UpdateMethod.CLIPPED.value:
+                    update_value = reward + self.policyparameter.gamma * np.min(state_action_functions[updated_function_pos][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])], state_action_functions[random.choice(list(
+                        index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])])
+                else: 
+                    raise ValueError("Invalid method for updating the state action function")
                 state_action_functions[updated_function_pos][state_pos][action] = state_action_functions[updated_function_pos][state_pos][action] + alpha * (
-                    reward + self.policyparameter.gamma * state_action_functions[random.choice(list(index_set))][next_state_pos][np.argmax(state_action_functions[updated_function_pos][next_state_pos])] - state_action_functions[updated_function_pos][state_pos][action])
+                    update_value - state_action_functions[updated_function_pos][state_pos][action])
                 number_of_times_played[state_pos][action] += 1
                 state = next_state
 
@@ -231,12 +249,14 @@ class DoubleStateActionLearning():
             self.state_action_functions = [
                 arr.copy() for arr in state_action_functions]
         return
-#TODO: init terminal positions for q values
+# TODO: init terminal positions for q values
+
 
 def main():
     SIZE = 5
     TOTALSTEPS = 10
-    parameter = DoubleParameter(epsilon=0.01)
+    parameter = DoubleParameter(
+        epsilon=0.01, runtimemethod=RunTimeMethod.EPISODES.value, episodes=10000, updatemethod=UpdateMethod.PLAIN.value)
     env = GridWorld(size=SIZE)
     agent = FiniteAgent(env)
     algo = DoubleStateActionLearning(
