@@ -8,7 +8,7 @@ import logging
 from typing import Union
 import numpy as np
 from gym import Env, spaces
-from scipy.stats import entropy
+# from scipy.stats import entropy
 from rlfinitegames.policies.discrete_agents import FiniteAgent
 from rlfinitegames.environments.grid_world import GridWorld
 from rlfinitegames.logging_module.setup_logger import setup_logger
@@ -24,7 +24,6 @@ LOGGING_FILE_LEVEL = logging.DEBUG
 # pylint: disable=W1203
 
 
-@dataclass
 class RunTimeMethod(Enum):
     """ Dataclass to specify the method to run the algorithm. If episodes is used, then 
     the algorithm is running until a number of episodes have been completed. Otherwise,
@@ -71,7 +70,11 @@ class OneStepDynamicProgramming():
     """
     # pylint: disable=line-too-long
 
-    def __init__(self, environment: Union[Env, str] = GridWorld(5), policy=FiniteAgent(), policyparameter: OneStepDynamicProgrammingParameters = OneStepDynamicProgrammingParameters(), verbose: int = 0, init_parameter: OneStepDynamicProgrammingInitConfig = OneStepDynamicProgrammingInitConfig(stateactionfunctioninit=20.0, invalidstateactionvalue=-1000000)) -> None:
+    def __init__(self, environment: Union[Env, str] = GridWorld(5),
+                 policy: FiniteAgent = FiniteAgent(),
+                 policyparameter: OneStepDynamicProgrammingParameters = OneStepDynamicProgrammingParameters(),
+                 verbose: int = 0,
+                 init_parameter: OneStepDynamicProgrammingInitConfig = OneStepDynamicProgrammingInitConfig(stateactionfunctioninit=20.0, invalidstateactionvalue=-1000000)) -> None:
         self.policyparameter = policyparameter  # policy evaluation parameter
         self.environment = environment  # environment class
         self.agent = policy  # agent class
