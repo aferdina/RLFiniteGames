@@ -37,3 +37,16 @@ class PolicyIterationParameter:
     epsilon_greedy: float = 0.1
     epsilon_greedy_decay: float = 1.0
     decay_steps: int = 1
+
+class RunTimeMethod(Enum):
+    """ Dataclass to specify the method to run the algorithm. If episodes is used, then 
+    the algorithm is running until a number of episodes have been completed. Otherwise,
+    the algorithm
+    is running until a convergence criterion has been reached.
+    """
+    EPISODES = "episodes"
+    CRITERION = "criterion"
+
+class PolicyMethod(Enum):
+    EPSILONGREEDY = "epsilongreedy"
+    BEHAVIOUR = "behaviour"
