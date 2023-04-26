@@ -1,16 +1,19 @@
 from enum import Enum
 from typing import Union
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
 
 class PolicyIterationApproaches(Enum):
     """ Enumeration of all possible policy iteration approaches"""
     NAIVE = 'Naive'
     SWEEP = 'Sweep'
 
+
 class MonteCarloApproaches(Enum):
     """ Enumeration of all possible policy iteration approaches"""
     STATE_ACTION_FUNCTION = 'StateActionFunction'
     VALUE_FUNCTION = 'ValueFunction'
+
 
 @dataclass
 class MonteCarloPolicyIterationParameters:
@@ -38,6 +41,7 @@ class PolicyIterationParameter:
     epsilon_greedy_decay: float = 1.0
     decay_steps: int = 1
 
+
 class RunTimeMethod(Enum):
     """ Dataclass to specify the method to run the algorithm. If episodes is used, then 
     the algorithm is running until a number of episodes have been completed. Otherwise,
@@ -47,6 +51,18 @@ class RunTimeMethod(Enum):
     EPISODES = "episodes"
     CRITERION = "criterion"
 
+
 class PolicyMethod(Enum):
     EPSILONGREEDY = "epsilongreedy"
     BEHAVIOUR = "behaviour"
+
+
+class UpdateMethod(Enum):
+    PLAIN = "plain"
+    TRUNCUATED = "truncuated"
+    CLIPPED = "clipped"
+
+@dataclass
+class TruncatedBounds:
+    lower_bound: float = field(default=10.0,metadata={"description": "lower bound for truncation"})
+    upper_bound: float = field(default=10.0,metadata={"description": "upper bound for truncation"})
