@@ -1,5 +1,10 @@
 from rlfinitegames.environments.grid_world import GridWorld
 from rlfinitegames.algorithms.double_state_action_learning import DoubleParameter
+from rlfinitegames.environments.constructed_max_bias import ConstructedMaxBias
+from rlfinitegames.algorithms.policy_iteration import FiniteAgent
+from rlfinitegames.algorithms.helperclasses import RunTimeMethod, UpdateMethod, TruncatedBounds, PolicyMethod
+from rlfinitegames.algorithms.double_state_action_learning import DoubleStateActionLearning, DoubleParameter
+
 
 def main():
     TOTALSTEPS = 10
@@ -14,13 +19,12 @@ def main():
     # env.reset()
     ### Constructed Max Bias ###
 
-
     env = ConstructedMaxBias(number_arms=5)
     agent = FiniteAgent(env=env, policy_type="uniform")
     parameter = DoubleParameter(
-        epsilon=0.01, runtimemethod=RunTimeMethod.EPISODES.value, episodes=10000, updatemethod=UpdateMethod.TRUNCUATED.value, trunc_bounds=TruncatedBounds(lower_bound=10.0,upper_bound=10.0))
+        epsilon=0.01, runtimemethod=RunTimeMethod.EPISODES.value, episodes=10000, updatemethod=UpdateMethod.TRUNCUATED.value, trunc_bounds=TruncatedBounds(lower_bound=10.0, upper_bound=10.0), method=PolicyMethod.BEHAVIOUR.value)
     algo = DoubleStateActionLearning(
-        environment=env, policy=agent, algo_params=parameter, policy_method=PolicyMethod.BEHAVIOUR)
+        environment=env, policy=agent, algo_params=parameter)
     algo.run_double_state_action_learning()
     env.reset()
     for _ in range(TOTALSTEPS):
