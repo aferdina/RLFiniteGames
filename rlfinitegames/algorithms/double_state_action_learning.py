@@ -9,10 +9,12 @@ import numpy as np
 from gym import Env, spaces
 from rlfinitegames.logging_module.setup_logger import setup_logger
 from rlfinitegames.policies.discrete_agents import FiniteAgent
-from rlfinitegames.algorithms.helperclasses import (RunTimeMethod,
+from rlfinitegames.algorithms.helperclasses import (RunTimeParameter,
                                                     PolicyMethod,
                                                     UpdateMethod,
-                                                    TruncatedBounds)
+                                                    RunTimeMethod,
+                                                    PolicyMethodNames,
+                                                    RobbingsSiegmundUpdate)
 
 # statics for logging purposes
 LOGGINGPATH = "rlfinitegames/logging_module/logfiles/"
@@ -48,8 +50,6 @@ class InitConfig:
 class DoubleParameter:
     """ class to represent all configurations of robbins siegmund algorithms
     """
-    epsilon: float = field(default=0.01, metadata={
-                           "doc": "determine convergence tolerance"})
     gamma: float = field(default=0.95, metadata={
                          "doc": "discount factor"})
     initialisation: InitConfig = field(
@@ -62,16 +62,11 @@ class DoubleParameter:
         default=0.1, metadata={"doc": "epsilon greedy parameter"})
     rate: float = field(default=1.0, metadata={
                         "doc": "rate parameter for step size"})
-    method: PolicyMethod = field(default=PolicyMethod.BEHAVIOUR.value, metadata={
-                                 "doc": "How to sample actions in the algorithm"})
-    episodes: int = field(default=1000, metadata={
-                          "doc": "number of episodes the algorithm is running"})
-    runtimemethod: RunTimeMethod = field(default=RunTimeMethod.CRITERION.value, metadata={
-                                         "doc": "run time method"})
-    updatemethod: UpdateMethod = field(default=UpdateMethod.PLAIN.value, metadata={
-                                       "doc": "update method from robbins siegmund"})
-    trunc_bounds: TruncatedBounds = field(
-        default_factory=lambda: TruncatedBounds(lower_bound=10.0, upper_bound=10.0))
+    runtimemethod: RunTimeParameter = field(default_factory=lambda: RunTimeParameter(
+        run_time_method=RunTimeMethod.EPISODES.value, episodes=1000))
+    updatemethod: RobbingsSiegmundUpdate = field(
+        default_factory=lambda: RobbingsSiegmundUpdate(update_method=UpdateMethod.PLAIN.value))
+    policy_method: PolicyMethod = field(default_factory=lambda: PolicyMethod())
 
 
 class DoubleStateActionLearning():
@@ -198,9 +193,9 @@ class DoubleStateActionLearning():
             self.environment.state = state
             done = False
             while not done:
-                if self.policyparameter.method == PolicyMethod.BEHAVIOUR.value:
+                if self.policyparameter.policy_method.method_name == PolicyMethodNames.BEHAVIOUR.value:
                     action = self.agent.get_action(state)
-                elif self.policyparameter.method == PolicyMethod.EPSILONGREEDY.value:
+                elif self.policyparameter.policy_method.method_name == PolicyMethodNames.EPSILONGREEDY.value:
                     summed_state_action_function = np.add.reduce(
                         self.state_action_functions)
                     self._get_greedy_policy(
@@ -236,25 +231,23 @@ class DoubleStateActionLearning():
                 index_set.remove(updated_function_pos)
                 # TODO: add updating all state action functions at once
                 # update state aciton function given different methods
-                if self.policyparameter.updatemethod == UpdateMethod.PLAIN.value:
+                if self.policyparameter.updatemethod.update_method == UpdateMethod.PLAIN.value:
                     update_value = reward + self.policyparameter.gamma *\
                         state_action_functions[random.choice(list(
                             index_set))][next_state_pos][np.argmax(
                                 state_action_functions[updated_function_pos][next_state_pos])]
-                elif self.policyparameter.updatemethod == UpdateMethod.TRUNCUATED.value:
+                elif self.policyparameter.updatemethod.update_method == UpdateMethod.TRUNCUATED.value:
                     update_value = reward + self.policyparameter.gamma * \
                         state_action_functions[updated_function_pos][next_state_pos][np.argmax(
                             state_action_functions[updated_function_pos][next_state_pos])] + \
                         self.policyparameter.gamma * \
-                        np.clip(a=np.min(
+                        self.policyparameter.updatemethod.trunc_bounds.trunc_value(np.min(
                             state_action_functions[random.choice(list(
                                 index_set))][next_state_pos][np.argmax(
                                     state_action_functions[updated_function_pos][next_state_pos])] -
                             state_action_functions[random.choice(list(
                                 index_set))][next_state_pos][np.argmax(
-                                    state_action_functions[updated_function_pos][next_state_pos])]),
-                                a_min=-self.policyparameter.trunc_bounds.lower_bound * alpha,
-                                a_max=self.policyparameter.trunc_bounds.upper_bound * alpha)
+                                    state_action_functions[updated_function_pos][next_state_pos])]), factor=alpha)
                 elif self.policyparameter.updatemethod == UpdateMethod.CLIPPED.value:
                     update_value = reward + self.policyparameter.gamma * \
                         np.minimum(
@@ -285,11 +278,11 @@ class DoubleStateActionLearning():
                         state_action_new - state_action_old)) for (
                             state_action_new, state_action_old) in zip(
                         state_action_functions,
-                        self.state_action_functions)) < self.policyparameter.epsilon:
+                        self.state_action_functions)) < self.policyparameter.runtimemethod.epsilon:
                     done_converge = True
                     self.logger.debug("convergence is reached")
             elif self.policyparameter.runtimemethod == RunTimeMethod.EPISODES.value:
-                if counter >= self.policyparameter.episodes:
+                if counter >= self.policyparameter.runtimemethod.episodes:
                     done_converge = True
             self.state_action_functions = [
                 arr.copy() for arr in state_action_functions]
