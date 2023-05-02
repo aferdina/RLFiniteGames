@@ -59,12 +59,12 @@ class PolicyIteration():
         if isinstance(self.environment.observation_space, spaces.MultiDiscrete):
             self.value_func = np.zeros(self.environment.observation_space.nvec)
             self.state_type = 'MultiDiscrete'
-        if isinstance(self.environment.observation_space, spaces.Discrete):
+        elif isinstance(self.environment.observation_space, spaces.Discrete):
             self.value_func = np.zeros(self.environment.observation_space.n)
             self.state_type = 'Discrete'
         else:
             raise NotImplementedError(
-                "Only MultiDiscrete and Discrete are currently supported")
+                f"Only MultiDiscrete and Discrete are currently supported but is {self.environment.observation_space}")
 
     def _evaluate(self) -> None:
         """
@@ -80,6 +80,8 @@ class PolicyIteration():
             elif self.state_type == "MultiDiscrete":
                 states = [tuple(state)
                           for state in np.ndindex(self.value_func.shape)]
+            else:
+                raise ValueError("Unsupported type")
             for state in states:
                 new_value = 0.0
                 for action in range(self.environment.action_space.n):
@@ -127,12 +129,12 @@ class PolicyIteration():
                     for i, prob_next_state in enumerate(prob_next_states):
                         value_function_next_step += prob_next_state * \
                             self.value_func[i]
-                elif self.state_type == 'MultDiscrete':
+                elif self.state_type == 'MultiDiscrete':
                     reward_state_action = np.sum(prob_next_states * rewards)
                     value_function_next_step = np.sum(
                         prob_next_states * self.value_func)
                 else: 
-                    raise NotImplementedError("Not supported environment")
+                    raise NotImplementedError(f"Not supported environment {self.state_type}")
 
                 q_values[state][act] += reward_state_action + \
                     self.policyparameter.gamma*value_function_next_step
